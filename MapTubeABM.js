@@ -5,21 +5,73 @@
 */
 
 var MapTube = MapTube || {};
-var MapTube.ABM = MapTube.ABM || {};
+MapTube.ABM = MapTube.ABM || {};
 
-//TODO: Need matrix and vector
-//dvec3 and mat4
+//NOTE: we're dumping the turtle analogy and calling them agents. Hatch is changed to Create.
 
+//vector and matrix definitions - loosely based around glm, but nowhere near as advanced
+//allows easy conversion from GeoGL methods, although, obviously, javascript can't do operators
+MapTube.ABM.Vector3 = function() {
+	//properties
+	this.x=0;
+	this.y=0;
+	this.z=0;
+	//methods
+	//todo: constructor(x,y,z)?
+}
+MapTube.ABM.Matrix4 = function() {
+	//properties
+	this.m = [
+		[1.0, 0.0, 0.0, 0.0],
+		[0.0, 1.0, 0.0, 0.0],
+		[0.0, 0.0, 1.0, 0.0],
+		[0.0, 0.0, 0.0, 1.0]
+	];
+	//methods
+	//TODO: add, subtract, rotate etc
+}
 
 
 //class model
 MapTube.ABM.Model = function() {
+	console.log('MapTube.ABM.Model::constructor');
+	
+	//properties
+	this.agentCount = 0; //global count of agents so each one gets a unique index number - this is NOT the number of live agents as it never decreases
 	this._agents = {}, //named with their class name, each is of class Agents
 	
-	this.setup = function() { console.log('Override setup function'); }
-	this.step = function (ticks) { console.log('Override setp function'); }
+	//methods
+	//virtual methods which need to be overridden in client code where the client provides the functionality
+	this.setup = function() { console.log('MapTube.ABM.Model::setup Override setup function'); }
+	this.step = function (ticks) { console.log('MapTube.ABM.Model::step Override step function'); }
 	this.updateScene = function() {}
-	this.createAgents = function(number,className) {}
+	
+	//public methods
+	
+	/* @name createAgents Create [number] agents of class [className]
+	 * @param number The number of agents to create
+	 * @param className Name of the class of agent to create. Basically, class is just a label for referencing groups of agents easily.
+	 * @returns A list of the new agents that have just been created, expecting the client code to want to set some properties on them.
+	 */
+	this.createAgents = function(number,className)
+	{
+		if (!this._agents.hasOwnProperty(className))
+			this._agents[className] = []; //make new list for agents of this class if not already existing
+		//now let's make some little agents...
+		var newAgents = [];
+		for (var i=0; i<number; i++) {
+			var a = new MapTube.ABM.Agent();
+			//agent gets his unique (across all classes) agent id number
+			a.number = this.agentCount;
+			++this.agentCount;
+			a.name = 'agent_'+a.number;
+			//are there any other properties to set here?
+			
+			this._agents[className].push(a);
+			newAgents.push(a);
+		}
+		return newAgents; //this is a live copy
+	}
 	
 	//defaults
 	//void SetDefaultShape(std::string BreedName, std::string ShapeName);
@@ -34,16 +86,15 @@ MapTube.ABM.Model = function() {
 //end of model definition
 
 //class agent
-
 MapTube.ABM.Agent = function() {
-	//this.
-	glm::dvec3 position; //copy of position so agents without meshes can have position
-	glm::mat4 agentMatrix; //copy of matrix so agents without meshes can have position and orientation
+	console.log('MapTube.ABM.Agent::constructor');
+	this.position = new MapTube.ABM.Vector3(); //copy of position so agents without meshes can have position
+	this.agentMatrix = new MapTube.ABM.Matrix4(); //copy of matrix so agents without meshes can have position and orientation
 	
 	//position
 	//orientation
 	//shape
-	this.size = 0.0f;
+	this.size = 0.0;
 	
 
 	//static Agents* _pParentAgents; //parent of all Agent classes - Agents, which needs to keep a list of its children
@@ -65,7 +116,8 @@ MapTube.ABM.Agent = function() {
 	this.die = function() {}
 
 	//movement and orientation
-	glm::dvec3 getXYZ();
+	this.getXYZ = function() { return this.position; }
+	this.setXYZ = function(x,y,z) { this.position.x=x; this.position.y=y; this.position.z=z; }
 	//double xcor(void);
 	//double ycor(void);
 	//double zcor(void); //added this
@@ -93,7 +145,8 @@ MapTube.ABM.Agent = function() {
 
 
 //class agents - all of same class
-MapTube.ABM.Agents = {
+MapTube.ABM.Agents = function() {
+	console.log('MapTube.ABM.Agents::constructor');
 	this.numAgents = 0; //counter for how many agents are in the model
 	this.birth = 0; //number of agents created in the last animation frame
 	this.death = 0; //number of agents destroyed in the last animation frame
@@ -102,7 +155,7 @@ MapTube.ABM.Agents = {
 	
 	//Agent methods
 	//sprout?
-	this.hatch = function (className) {};
+	this.create = function () {}; //you can only create one of this class type from here - use model class otherwise
 	this.die = function (a) {};
 	//TODO:
 	//std::vector<ABM::Agent*> With(std::string VariableName,std::string Value); //quick version for just one variable name
@@ -112,7 +165,7 @@ MapTube.ABM.Agents = {
 
 //class agent time
 
-MapTube.ABM.AgentTime = {
+MapTube.ABM.AgentTime = function() {
 /*	time_t _DT; //year, month, day, hour, min, second
 	float _fraction; //fractions of a second
 

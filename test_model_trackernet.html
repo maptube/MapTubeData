@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- test_model_trackernet.html-->
+  <!-- Richard Milton 21 April 2017-->
+  <!-- Requires Cesium to be installed in the directory 'Cesium' and to be run in Chrome with --disable-web-security -->
+  
+  <!-- Use correct character set. -->
+  <meta charset="utf-8">
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+  <title>Test model_trackernet</title>
+  <script src="Cesium/Cesium.js"></script>
+  
+  <!-- This is what we're actually testing... -->
+  <!--<script src="MapTubeData.js"></script>-->
+  <!--<script src="MapTubeABM.js"></script>-->
+  <!-- And our specialised trackernet model class that uses MapTubeABM -->
+  <!--<script src="model_trackernet.js"></script>-->
+  
+  <style>
+      @import url(Cesium/Widgets/widgets.css);
+      html, body, #cesiumContainer {
+          width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+      }
+  </style>
+</head>
+<body>
+<div id="cesiumContainer"></div>
+  <script>
+    var viewer = new Cesium.Viewer('cesiumContainer');
+	viewer.entities.suspendEvents();
+	var wyoming = viewer.entities.add({
+  name : 'Wyoming',
+  polygon : {
+    hierarchy : Cesium.Cartesian3.fromDegreesArray([
+                              -109.080842,45.002073,
+                              -105.91517,45.002073,
+                              -104.058488,44.996596,
+                              -104.053011,43.002989,
+                              -104.053011,41.003906,
+                              -105.728954,40.998429,
+                              -107.919731,41.003906,
+                              -109.04798,40.998429,
+                              -111.047063,40.998429,
+                              -111.047063,42.000709,
+                              -111.047063,44.476286,
+                              -111.05254,45.002073]),
+    height : 0,
+    material : Cesium.Color.RED.withAlpha(0.5),
+    outline : true,
+    outlineColor : Cesium.Color.BLACK
+  }
+});
+viewer.entities.resumeEvents();
+
+viewer.zoomTo(wyoming);
+	
+	
+//	var modelTrackernet = new ModelTrackernet();
+//	modelTrackernet.viewer=viewer;
+//	modelTrackernet.setup();
+//	//viewer.zoomTo(london); //todo: you need the box and viewport code from geogl
+	
+//	var lastUpdate = performance.now();
+//	function updateScene(timestamp){
+//		window.requestAnimationFrame(updateScene);
+//		var ticks = timestamp-lastUpdate;
+//		if (ticks<1000) return;
+//		modelTrackernet.step(ticks/1000.0); //pass in how long since last update in seconds
+//		modelTrackernet.updateScene();
+//		lastUpdate=timestamp;
+//	}
+//	window.requestAnimationFrame(updateScene);
+	
+  </script>
+</body>
+</html>
