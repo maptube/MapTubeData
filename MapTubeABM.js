@@ -4,6 +4,8 @@
 *
 */
 
+//require graph.js
+
 var MapTube = MapTube || {};
 MapTube.ABM = MapTube.ABM || {};
 
@@ -38,7 +40,8 @@ MapTube.ABM.Model = function() {
 	
 	//properties
 	this.agentCount = 0; //global count of agents so each one gets a unique index number - this is NOT the number of live agents as it never decreases
-	this._agents = {}, //named with their class name, each is of class Agents
+	this._agents = {}; //named with their class name, each is of class Agents
+	this._graphs = {}; //network graphs relating to agent interactions (if used)
 	
 	//methods
 	//virtual methods which need to be overridden in client code where the client provides the functionality
@@ -62,7 +65,7 @@ MapTube.ABM.Model = function() {
 		for (var i=0; i<number; i++) {
 			var a = new MapTube.ABM.Agent();
 			//agent gets his unique (across all classes) agent id number
-			a.number = this.agentCount;
+			a.id = this.agentCount;
 			++this.agentCount;
 			a.name = 'agent_'+a.number;
 			//are there any other properties to set here?
@@ -71,6 +74,57 @@ MapTube.ABM.Model = function() {
 			newAgents.push(a);
 		}
 		return newAgents; //this is a live copy
+	}
+	
+	//methods relating to finding agents by properties
+	
+	/*
+	 * @name getAgent Get an agent from its name property (they're indexed in the agent map on their unique id number)
+	 * @param agentName
+	 * @returns The agent with the given name if it was found, otherwise null if no agent with that name was found
+	 * TODO: optimise the name search by making a link between the agent id and the name - NOTE: ids are unique across all classes
+	 */
+	this.getAgent = function(agentName)
+	{
+		//go through all the classes and all the agents in each one, return the first name match
+		for (var c in this._agents) {
+			var alist = this._agents[c];
+			for (var id in alist) {
+				var a = alist[id];
+				if (a.name==agentName) return a;
+			}
+		}
+		return null;
+	}
+	
+	//methods relating to links and graphs
+	
+	/*
+	 * @name createLink Create a link between two agents using a named network. NOTE: you can link two agents of different classes.
+	 * @param networkName
+	 * @param agentName1
+	 * @param agentName2
+	 * @returns The link it just created, which is actually an edge in a graph.
+	 */
+	this.createLink = function(networkName,agentName1,agentName2)
+	{
+		if (!this._graphs.hasOwnProperty(networkName))
+			this._graphs[networkName] = new Graph(true); //make new list for agents of this class if not already existing
+		var g = this._graphs[networkName];
+		//now find the two agents from their names
+		var a1=this.getAgent(agentName1);
+		var a2=this.getAgent(agentName2);
+		//assert a1!=null and a2!=null ???
+		if ((a1==null)||(a2==null)) {
+			console.error('MapTube.ABM.Model.createLink: FATAL - agent not found by name: ',agentName1,agentName2,a1,a2);
+			return;
+		}
+		var e=g.connectVertices(a1.id,a2.id);
+		//make link between each vertex in the graph and the agents - this allows us to query agent.outLinks or agent.inLinks
+		a1.graphVertex[networkName]=e._fromVertex;
+		a2.graphVertex[networkName]=e._toVertex;
+		
+		return e;
 	}
 	
 	//defaults
@@ -99,9 +153,10 @@ MapTube.ABM.Agent = function() {
 
 	//static Agents* _pParentAgents; //parent of all Agent classes - Agents, which needs to keep a list of its children
 		
-	this.number = -1; //unique agent number
+	this.id = -1; //unique agent number
 	//std::string _BreedName;
 	this.name = 'agent'; //unique key (is it unique?)
+	this.graphVertex = {}; //map connecting this agent to a named network graph to link to its vertex representation in the graph structure
 	//colour
 	//glm::vec3 _colour; //this should be private
 	
@@ -161,6 +216,12 @@ MapTube.ABM.Agents = function() {
 	//std::vector<ABM::Agent*> With(std::string VariableName,std::string Value); //quick version for just one variable name
 	//TODO: you could pass a function to WITH as the selector (visitor pattern)
 	//std::vector<ABM::Agent*> Ask(std::string BreedName); //For(breedname) ? i.e. for d in drivers
+}
+
+//class link
+MapTube.ABM.Link = function() {
+	//TODO:
+	//link two agents together
 }
 
 //class agent time

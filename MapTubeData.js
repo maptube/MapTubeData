@@ -54,6 +54,8 @@ MapTube.data.core.parseCSV = function (text) {
 	return csv;
 }
 
+//callback is ([csv object lines],xmlhttp object)
+//xmlhttp.getResponseHeader("Content-Type") to get a header back from it
 MapTube.data.core.acquireCSV = function (url,callback) {
 	//make an http get request for a csv file
 	var xmlhttp;
@@ -66,7 +68,27 @@ MapTube.data.core.acquireCSV = function (url,callback) {
 	xmlhttp.onreadystatechange = function () {
 		if ((this.readyState==4) && (this.status==200)) {
 			//parse CSV and return formatted object
-			callback.call(this,MapTube.data.core.parseCSV(this.responseText));
+			callback.call(this,MapTube.data.core.parseCSV(this.responseText),xmlhttp);
+		}
+	}
+	xmlhttp.open("GET", url, true);
+	xmlhttp.send();
+}
+
+MapTube.data.core.acquireJSON = function (url,callback) {
+	//make a request for a json file
+	var xmlhttp;
+	if (window.XMLHttpRequest) {
+		xmlhttp = new XMLHttpRequest();
+	}
+	else {
+		xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+	}
+	xmlhttp.onreadystatechange = function () {
+		if ((this.readyState==4) && (this.status==200)) {
+			//parse json and return formatted object
+			var json = JSON.parse(this.responseText);
+			callback.call(this,json,xmlhttp);
 		}
 	}
 	xmlhttp.open("GET", url, true);
