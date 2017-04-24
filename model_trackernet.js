@@ -12,6 +12,20 @@
 	 console.log('ModelTrackernet::constructor');
 	 //MapTube.ABM.Model.call(this);
 	 
+	 //constants
+	 this.lineColours = {
+		'B' : Cesium.Color.fromCssColorString('#b06110'),
+		'C' : Cesium.Color.fromCssColorString('#ef2e24'),
+		'D' : Cesium.Color.fromCssColorString('#008640'),
+		'H' : Cesium.Color.fromCssColorString('#ffd203'), //yellow!
+		'J' : Cesium.Color.fromCssColorString('#959ca2'),
+		'M' : Cesium.Color.fromCssColorString('#98005d'),
+		'N' : Cesium.Color.fromCssColorString('#231f20'),
+		'P' : Cesium.Color.fromCssColorString('#1c3f95'),
+		'V' : Cesium.Color.fromCssColorString('#009ddc'),
+		'W' : Cesium.Color.fromCssColorString('#86cebc')
+	 }
+	 
 	 //properties
 	 this.viewer = null; //need to set this as a link to the Cesium instance
 	 this.tubeDataSource = null;
@@ -203,6 +217,7 @@ this._linksPolylines.add({
 		 //console.log(json);
 		 //"B" : { "0" : [ { "o": "ELE", "d": "LAM", "r": 120 },
 		 for (lineCode in json) {
+			 var lineColour = this.lineColours[lineCode];
 			 var lineData = json[lineCode];
 			 for (var dir = 0; dir<2; dir++)
 			 {
@@ -226,7 +241,7 @@ this._linksPolylines.add({
 							fabric : {
 								type : 'Color',
 								uniforms : {
-									color : new Cesium.Color(1.0, 0.0, 0.0, 1.0)
+									color : lineColour
 								}
 							}
 						})
