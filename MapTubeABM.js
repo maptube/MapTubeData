@@ -121,6 +121,8 @@ MapTube.ABM.Model = function() {
 		}
 		var e=g.connectVertices(a1.id,a2.id);
 		//make link between each vertex in the graph and the agents - this allows us to query agent.outLinks or agent.inLinks
+		e._fromAgent=a1;
+		e._toAgent=a2;
 		a1.graphVertex[networkName]=e._fromVertex;
 		a2.graphVertex[networkName]=e._toVertex;
 		

@@ -176,23 +176,29 @@
 	 }.bind(this));
 	 
 	 //now we have the station nodes, make the relevant links between them to build the network
-	 var polylines = new Cesium.PolylineCollection();
-//polylines.add({
-//  positions : Cesium.Cartesian3.fromDegreesArray([
-//    -75.10, 39.57,
-//    -77.02, 38.53,
-//    -80.50, 35.14,
-//    -80.12, 25.46]),
-//  width : 2
-//});
-//polylines.add({
-//  positions : Cesium.Cartesian3.fromDegreesArray([
-//    -73.10, 37.57,
-//    -75.02, 36.53,
-//    -78.50, 33.14,
-//    -78.12, 23.46]),
-//  width : 4
-//});
+	 this._linksPolylines = new Cesium.PolylineCollection();
+/*this._linksPolylines.add({
+  positions : Cesium.Cartesian3.fromDegreesArray([
+    -75.10, 39.57,
+    -77.02, 38.53,
+    -80.50, 35.14,
+    -80.12, 25.46])
+});
+this._linksPolylines.add({
+  positions : Cesium.Cartesian3.fromDegreesArray([
+    -73.10, 37.57,
+    -75.02, 36.53,
+    -78.50, 33.14,
+    -78.12, 23.46])
+});*/
+//this.linksDataSource.entities.add(polylines);
+/*this.viewer.entities.add({
+	name : '__LINKS',
+	polylines: polylines,
+	width : new Cesium.ConstantProperty(4),
+	material : Cesium.Color.RED
+});*/
+//this.viewer.scene.primitives.add(this._linksPolylines);
 	 MapTube.data.core.acquireJSON('tube-network.json',function(json) {
 		 //console.log(json);
 		 //"B" : { "0" : [ { "o": "ELE", "d": "LAM", "r": 120 },
@@ -208,18 +214,29 @@
 					e.direction = dir;
 					console.log('CreateLink: ',lineCode,link,e);
 					//Cesium specific
-					fromAgent = this._agents.tubes[e._fromVertex.id]; //vertex id in graph is the link to the agent
-					toAgent = this._agents.tubes[e._toVertex.id];
-					polylines.add({
+					fromAgent = e._fromAgent;
+					toAgent = e._toAgent;
+					this._linksPolylines.add({
 						positions : [
 							new Cesium.Cartesian3(fromAgent.position.x, fromAgent.position.y, fromAgent.position.z),
 							new Cesium.Cartesian3(toAgent.position.x, toAgent.position.y, toAgent.position.z),
 							],
-						width : 2
-					})
+						width: 1,
+						material : new Cesium.Material({
+							fabric : {
+								type : 'Color',
+								uniforms : {
+									color : new Cesium.Color(1.0, 0.0, 0.0, 1.0)
+								}
+							}
+						})
+					});
 				}
 			 }
 		 }
+		 //console.log(this._linksPolylines);
+		 //this._linksPolylines.material = Cesium.Color.RED;
+		 this.viewer.scene.primitives.add(this._linksPolylines);
 
 	 }.bind(this));
 	 
@@ -259,7 +276,7 @@
 				position: Cesium.Cartesian3.fromDegrees(lon, lat, 0.0), //TODO: this needs to be half the height
 				//position: Cesium.Cartesian3.fromDegrees(-114.0, 40.0, 300000.0),
 				box : {
-					dimensions : new Cesium.Cartesian3(200.0, 200.0, 100.0),
+					dimensions : new Cesium.Cartesian3(200.0, 200.0, 150.0),
 					material : Cesium.Color.fromCssColorString(this.lineCodeToCSSColour(tubeAgent.lineCode))  //was Cesium.Color.BLUE
 				}
 			});

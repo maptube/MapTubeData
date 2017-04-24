@@ -1,6 +1,7 @@
 module.exports = function(grunt) {
 
   // Project configuration.
+  //TODO: you might want to switch web_server for grunt-contrib-connect
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
     uglify: {
