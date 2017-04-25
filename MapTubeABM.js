@@ -1,6 +1,11 @@
 /**
 * Model.js
 * MapTube.ABM.Model
+* Richard Milton 21 April 2017
+* Agent Based Modelling in javascript. Designed to run headless, so contains no visualisation code.
+* This is a 3D ABM, designed to interface with a virtual globe e.g. Cesium.
+* The design pattern is that the ABM runs headless and an update function makes changes to the visualisation in Cesium
+* peridically, but this project contains no visualisation code, only ABM functionality.
 *
 */
 
@@ -144,13 +149,14 @@ MapTube.ABM.Model = function() {
 //class agent
 MapTube.ABM.Agent = function() {
 	console.log('MapTube.ABM.Agent::constructor');
+	this.isDirty=true; //flag used when a visualisation property changes and the agent needs to be redrawn
 	this.position = new MapTube.ABM.Vector3(); //copy of position so agents without meshes can have position
 	this.agentMatrix = new MapTube.ABM.Matrix4(); //copy of matrix so agents without meshes can have position and orientation
 	
 	//position
 	//orientation
 	//shape
-	this.size = 0.0;
+	this.size = 1.0;
 	
 
 	//static Agents* _pParentAgents; //parent of all Agent classes - Agents, which needs to keep a list of its children
@@ -165,8 +171,8 @@ MapTube.ABM.Agent = function() {
 	//this.setColour = function(glm::vec3 new_colour) {}
 	//glm::vec3 getColour();
 	
-	this.get = function(name) {}
-	this.set = function(name,value) {}
+	//this.get = function(name) {}
+	//this.set = function(name,value) {}
 	
 	//create, destroy
 	//std::vector<Agent*> Hatch(int N, std::string BreedName);
@@ -174,7 +180,7 @@ MapTube.ABM.Agent = function() {
 
 	//movement and orientation
 	this.getXYZ = function() { return this.position; }
-	this.setXYZ = function(x,y,z) { this.position.x=x; this.position.y=y; this.position.z=z; }
+	this.setXYZ = function(x,y,z) { this.isDirty=true; this.position.x=x; this.position.y=y; this.position.z=z; }
 	//double xcor(void);
 	//double ycor(void);
 	//double zcor(void); //added this
@@ -221,10 +227,10 @@ MapTube.ABM.Agents = function() {
 }
 
 //class link
-MapTube.ABM.Link = function() {
-	//TODO:
-	//link two agents together
-}
+//MapTube.ABM.Link = function() {
+//	//TODO:
+//	//link two agents together
+//}
 
 //class agent time
 

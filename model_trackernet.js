@@ -26,9 +26,118 @@
 		'W' : Cesium.Color.fromCssColorString('#86cebc')
 	 }
 	 
+	 //Cesium visualisation hooks here - to be moved into a separate unit at a later point in time
+	 //This section makes the link between the agent model and how it displays on the globe.
+	 //There are two ways that this can be done: overload all methods and properties that change the visualisation
+	 //with ones that update Cesium directly, or alternatively, let the ABM run headless and do a screen update
+	 //periodically. You could used "dirty" flags for performance.
+	 //On reflection, the second method seems better.
+	 //TODO:
+	 this.cesiumSetup = function() {
+		 //setup and initialisation for the Cesium visualisation
+		 //put stations and tube agents into separate custom datasources as stations don't move
+		 this._cesiumStationDataSource = new Cesium.CustomDataSource('stations');
+		 this.viewer.dataSources.add(this._cesiumStationDataSource);
+		 //create a datasource for the tube entities (trains)
+		 this._cesiumTubeDataSource = new Cesium.CustomDataSource('trackernet');
+		 this.viewer.dataSources.add(this._cesiumTubeDataSource);
+		 //and we need a polylines object for the network graph
+		 //this._cesiumLinksPolylines = new Cesium.PolylineCollection();
+	 }
+	 this.cesiumUpdate = function() {
+		 console.log('ModelTrackernet::cesiumUpdate');
+		 //NOTE: agents are tagged with __cesiumEntity which contains the cesium entity displayed on the globe, which allows for manipulation
+		 //if this was outside the model, then pass in viewer and Model - this might be a good way of separating
+		 //the model from the visualisation as ModelTrackernet should contain no Cesium code at all.
+		 //NOTE: what about coordinate conversions? Surely, you need Cesium for that?
+		 
+		 //for all agents (TODO: how about a dirty flag on each class and on each individual agent?)
+		 for (var c in this._agents) { //agent class name c
+			console.log('ModelTrackernet::cesiumUpdate agent class='+c);
+			 var agents = this._agents[c];
+			 for (var i=0; i<agents.length; i++) {
+				 var a = agents[i]; //this is the agent
+				 if (!a.hasOwnProperty('__cesiumEntity')) {
+					 //this agent has no Cesium object associated with it, so we need to create one
+					 if (c=='station') {
+						 //create entity in Cesium and maintain a link between the entity and the MapTubeABM
+						 a.__cesiumEntity = this._cesiumStationDataSource.entities.add(
+						 {
+							 name : a.name,
+							 position: new Cesium.Cartesian3(a.position.x,a.position.y,a.position.z),
+							 cylinder : {
+								 length : 100.0,
+								 topRadius : 200.0,
+								 bottomRadius : 200.0,
+								 dimensions : new Cesium.Cartesian3(200.0, 200.0, 100.0),
+								 material : Cesium.Color.WHITE
+							}
+						}); 
+					 }
+					 else if (c=='tube') {
+						 //create entity in Cesium and maintain a link between the entity and the MapTubeABM
+						 a.__cesiumEntity = this._cesiumTubeDataSource.entities.add(
+						 {
+							 name : a.name,
+							 position: new Cesium.Cartesian3(a.position.x,a.position.y,a.position.z),
+							 box : {
+								 dimensions : new Cesium.Cartesian3(200.0, 200.0, 150.0),
+								 material : Cesium.Color.fromCssColorString(this.lineCodeToCSSColour(a.lineCode))
+							}
+						}); 
+					 }
+				 }
+				 //dirty bit test?
+				 
+			 }
+		 }
+		 
+		 //for all links
+		 //TODO: I think the only way of doing this might be to make the whole graph class dirty and recreate it rather than
+		 //individual links - links don't change that often
+		 //NOTE: I'm using the graph class to determine the colour of the link - you could colour them individually if you wanted
+		 for (var c in this._graphs) { //graph class c
+			console.log('ModelTrackernet::cesiumUpdate graph class='+c);
+			var lineColour = this.lineColours[c.charAt(5)]; //the class is line_B, line_C etc
+			var G = this._graphs[c];
+			//We're using _cesiumLinksPolylines on each graph class as a holder for the network polylines for that class.
+			//In other words, if the links get changed, then the whole graph is re-created. This can be changed quite easily if it's
+			//a performance problem.
+			if (!G.hasOwnProperty('__cesiumLinksPolylines'))
+				G._cesiumLinksPolylines = new Cesium.PolylineCollection();
+			//console.log("Graph: ",G);
+			for (var i=0; i<G._edges.length; i++) {
+				var e = G._edges[i];
+				//Cesium specific
+				var fromAgent = e._fromAgent;
+				var toAgent = e._toAgent;
+				G._cesiumLinksPolylines.add({
+					positions : [
+						new Cesium.Cartesian3(fromAgent.position.x, fromAgent.position.y, fromAgent.position.z),
+						new Cesium.Cartesian3(toAgent.position.x, toAgent.position.y, toAgent.position.z),
+					],
+					width: 1,
+					material : new Cesium.Material({
+						fabric : {
+							type : 'Color',
+							uniforms : {
+								color : lineColour
+							}
+						}
+					})
+				});
+			}
+			this.viewer.scene.primitives.add(G._cesiumLinksPolylines); //one per graph class
+		 }
+		 
+	 }
+	 //End of Cesium visualisation hooks
+	 
+	 
+	 
 	 //properties
 	 this.viewer = null; //need to set this as a link to the Cesium instance
-	 this.tubeDataSource = null;
+	 
 	 
 	 //private methods
 	 /*
@@ -147,6 +256,7 @@
  ModelTrackernet.prototype.setup = function () {
 	 console.log('ModelTrackernet::setup');
 	 //TODO: initialisation here
+	 this.cesiumSetup(); //Cesium visualisation initialisation
 	 
 	 //TODO: add logic here which separates the visualisation from the ABM itself i.e. the model can
 	 //run headless, but there are overloads on agent visualisation properties which tie in with Cesium.
@@ -155,9 +265,7 @@
 	 
 	 //TODO: this explicit creation of the link between the ABM and Cesium needs to change - you should just create the agent and set the properties
 	 
-	 //create a datasrouce and load stations (TODO: this should be a MapTube datasource)
-	 this.stationDataSource = new Cesium.CustomDataSource('stations');
-	 this.viewer.dataSources.add(this.stationDataSource)
+	 //load stations and create agents (TODO: this should be a MapTube datasource)
 	 MapTube.data.core.acquireCSV('station-codes.csv',function(data) {
 		 for (var i=0; i<data.length; i++) {
 			//#code,NPTGCode,lines,lon,lat,name
@@ -168,56 +276,19 @@
 			var stationName = data[i].name;
 			if (isNaN(lat)||isNaN(lon)) continue;
 			//console.log("Station: ",stationCode,lon,lat,stationName);
-			var stnAgent = this.createAgents(1,'node')[0];
+			var stnAgent = this.createAgents(1,'station')[0]; //create agent of class "station", which is used by the visualisation
 			stnAgent.name=stationCode;
-			var pos = Cesium.Cartesian3.fromDegrees(lon, lat);
+			var pos = Cesium.Cartesian3.fromDegrees(lon, lat, 0.0); //TODO: this needs to be half the height
 			stnAgent.setXYZ(pos.x,pos.y,pos.z);
-			
-			//create entity in Cesium and maintain a link between the entity and the MapTubeABM
-			stnAgent._cesiumEntity = this.stationDataSource.entities.add(
-			{
-				name : data[i].name,
-				position: Cesium.Cartesian3.fromDegrees(lon, lat, 0.0), //TODO: this needs to be half the height
-				cylinder : {
-					length : 100.0,
-					topRadius : 200.0,
-					bottomRadius : 200.0,
-					dimensions : new Cesium.Cartesian3(200.0, 200.0, 100.0),
-					material : Cesium.Color.WHITE
-				}
-			});
 		 }
 	 }.bind(this));
 	 
 	 //now we have the station nodes, make the relevant links between them to build the network
-	 this._linksPolylines = new Cesium.PolylineCollection();
-/*this._linksPolylines.add({
-  positions : Cesium.Cartesian3.fromDegreesArray([
-    -75.10, 39.57,
-    -77.02, 38.53,
-    -80.50, 35.14,
-    -80.12, 25.46])
-});
-this._linksPolylines.add({
-  positions : Cesium.Cartesian3.fromDegreesArray([
-    -73.10, 37.57,
-    -75.02, 36.53,
-    -78.50, 33.14,
-    -78.12, 23.46])
-});*/
-//this.linksDataSource.entities.add(polylines);
-/*this.viewer.entities.add({
-	name : '__LINKS',
-	polylines: polylines,
-	width : new Cesium.ConstantProperty(4),
-	material : Cesium.Color.RED
-});*/
-//this.viewer.scene.primitives.add(this._linksPolylines);
 	 MapTube.data.core.acquireJSON('tube-network.json',function(json) {
 		 //console.log(json);
 		 //"B" : { "0" : [ { "o": "ELE", "d": "LAM", "r": 120 },
 		 for (lineCode in json) {
-			 var lineColour = this.lineColours[lineCode];
+			 //var lineColour = this.lineColours[lineCode];
 			 var lineData = json[lineCode];
 			 for (var dir = 0; dir<2; dir++)
 			 {
@@ -227,39 +298,16 @@ this._linksPolylines.add({
 					var e = this.createLink('line_'+lineCode,link.o,link.d);
 					e.weight = link.r;
 					e.direction = dir;
-					console.log('CreateLink: ',lineCode,link,e);
-					//Cesium specific
-					fromAgent = e._fromAgent;
-					toAgent = e._toAgent;
-					this._linksPolylines.add({
-						positions : [
-							new Cesium.Cartesian3(fromAgent.position.x, fromAgent.position.y, fromAgent.position.z),
-							new Cesium.Cartesian3(toAgent.position.x, toAgent.position.y, toAgent.position.z),
-							],
-						width: 1,
-						material : new Cesium.Material({
-							fabric : {
-								type : 'Color',
-								uniforms : {
-									color : lineColour
-								}
-							}
-						})
-					});
+					//console.log('CreateLink: ',lineCode,link,e);
 				}
 			 }
 		 }
 		 //console.log(this._linksPolylines);
 		 //this._linksPolylines.material = Cesium.Color.RED;
-		 this.viewer.scene.primitives.add(this._linksPolylines);
+		 //this.viewer.scene.primitives.add(this._linksPolylines);
 
 	 }.bind(this));
 	 
-	 
-	 //create a datasource for the tube entities (trains)
-	 this.tubeDataSource = new Cesium.CustomDataSource('trackernet');
-	 //this.tubeDataSource.entities.add(<your entity here>)
-	 this.viewer.dataSources.add(this.tubeDataSource)
 	 
 	 
 	 //obtain latest data from API
@@ -278,25 +326,16 @@ this._linksPolylines.add({
 			var agentName = lineCode+'_'+setnumber+'_'+tripnumber;
 			
 			//create the agent and set his properties from the data line
+			//create agent of class "tube" which is used by the visualisation
 			var tubeAgent = this.createAgents(1,'tube')[0]; //TODO: make this more elegant for cases when you only want one created
 			tubeAgent.name=agentName;
 			tubeAgent.lineCode=lineCode;
 			var pos = Cesium.Cartesian3.fromDegrees(lon, lat);
 			tubeAgent.setXYZ(pos.x,pos.y,pos.z);
-			
-			//create entity in Cesium and maintain a link between the entity and the MapTubeABM
-			tubeAgent._cesiumEntity = this.tubeDataSource.entities.add(
-			{
-				name : data[i].name,
-				position: Cesium.Cartesian3.fromDegrees(lon, lat, 0.0), //TODO: this needs to be half the height
-				//position: Cesium.Cartesian3.fromDegrees(-114.0, 40.0, 300000.0),
-				box : {
-					dimensions : new Cesium.Cartesian3(200.0, 200.0, 150.0),
-					material : Cesium.Color.fromCssColorString(this.lineCodeToCSSColour(tubeAgent.lineCode))  //was Cesium.Color.BLUE
-				}
-			});
 		}
+		this.cesiumUpdate(); //HACK, call the update now for testing - you need this to create the entities on the globe
 	 }.bind(this));
+	 
 	 
  }
  ModelTrackernet.prototype.step = function(ticks) {
