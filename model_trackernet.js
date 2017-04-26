@@ -41,8 +41,7 @@
 		 //create a datasource for the tube entities (trains)
 		 this._cesiumTubeDataSource = new Cesium.CustomDataSource('trackernet');
 		 this.viewer.dataSources.add(this._cesiumTubeDataSource);
-		 //and we need a polylines object for the network graph
-		 //this._cesiumLinksPolylines = new Cesium.PolylineCollection();
+		 //polylines are created for each Graph, with the cesium entity hooked into the graph object
 	 }
 	 this.cesiumUpdate = function() {
 		 console.log('ModelTrackernet::cesiumUpdate');
@@ -184,60 +183,59 @@
 	this.positionAgent = function(agent,lineCode,timeToStation,nextStation,direction)
 	{
 		//TODO: from GeoGL
-/*		var success = false;
-		std::vector<ABM::Agent*> agent_d = _agents.With("name",NextStation); //destination node station
-		if (agent_d.size()>0) {
-			if (TimeToStation<=0) {
+		var success = false;
+		var agent_d = this._agents.find('name',nextStation); //destination node station
+		if (agent_d.length>0) {
+			if (timeToStation<=0) {
 				//Agent is currently "At Platform", so we don't have a to node - set to=from and a dummy velocity plus direction
 				//and let the animate code figure out the next station. We need to do this, otherwise tubes are going to sit in
 				//the same location until the next data frame
-				ABM::Agent* fromNode = agent_d.front();
-				agent->Set<ABM::Agent*>("fromNode", fromNode);
-				agent->Set<ABM::Agent*>("toNode", fromNode); //yes, really fromNode
-				agent->Set<float>("v", 5); //put in a fake velocity - 5ms-1 should do it - all we need to do is to trigger the arrived at station code in the animate loop
-				agent->Set<int>("direction", Direction);
-				agent->Set<std::string>("lineCode", strLineCode);
+				var fromNode = agent_d[0];
+				agent.fromNode=fromNode;
+				agent.toNode=fromNode; //yes, really fromNode
+				agent.v=5; //put in a fake velocity - 5ms-1 should do it - all we need to do is to trigger the arrived at station code in the animate loop
+				agent.direction=direction;
+				agent.lineCode=strLineCode;
 //			agent->SetColour(LineCodeToVectorColour(LineCode)); //NO! Colour only set on hatch
-				glm::dvec3 P = fromNode->GetXYZ();
-				agent->SetXYZ(P.x,P.y,P.z); //position agent on its toNode
-				Success=true;
+				var P = fromNode.getXYZ();
+				agent.setXYZ(P.x,P.y,P.z); //position agent on its toNode
+				success=true;
 			}
 			else {
-				std::vector<ABM::Link*> links = agent_d.front()->InLinks();
-				for (std::vector<ABM::Link*>::iterator itLinks = links.begin(); itLinks!=links.end(); ++itLinks)
+				var links = agent_d[0]->inLinks();
+				for (var i=0; i<links.length; i++)
 				{
-					ABM::Link* l = *itLinks;
+					var l = links[i];
 					if ((l->Get<std::string>("lineCode")==strLineCode) && (l->Get<int>("direction")==Direction))
 					{
-						agent->Set<ABM::Agent*>("fromNode", l->end1);
-						agent->Set<ABM::Agent*>("toNode", l->end2);
-						//agent->Set<float>("v", l->Get<float>("velocity")); //use pre-created velocity for this link
-						agent->Set<int>("direction", l->Get<int>("direction"));
-						agent->Set<std::string>("lineCode", strLineCode);
+						agent.fromNode=l.end1;
+						agent.toNode=l.end2;
+						agent.direction=l.direction;
+						agent.lineCode=strLineCode;
 //					agent->SetColour(LineCodeToVectorColour(LineCode)); //NO! Colour only set on hatch
 						//interpolate position based on runlink and time to station
-						float dist = l->end2->Distance(*(l->end1));
+						var dist = l.end2.distance(l.end1);
 						//NOTE: dist/TimeToStation is wrong for the velocity - this is for the full link distance, but we're using the time to station to position based on velocity (runlink and distance)
 						//float velocity = dist/(float)TimeToStation; //calculate velocity needed to get to the next node when it says we should
-						float runlink = l->Get<float>("runlink");
-						float velocity = dist/runlink;
-						agent->Set<float>("v",velocity); //this is the timetabled speed for this runlink
-						if (TimeToStation>=runlink) {
+						var runlink = l.runlink;
+						var velocity = dist/runlink;
+						agent.v=velocity); //this is the timetabled speed for this runlink
+						if (timeToStation>=runlink) {
 							//cerr<<"Error: TimeToStation greater than runlink! "<<agent->Name<<endl;
 							//in the annoying case when the time to station is greater than the time it's supposed to take to get there, position at the fromNode
-							glm::dvec3 Pfrom = l->end1->GetXYZ();
+							var Pfrom = l.end1.getXYZ();
 							agent->SetXYZ(Pfrom.x,Pfrom.y,Pfrom.z);
 						}
 						else {
-							glm::dvec3 Pfrom = l->end1->GetXYZ();
-							glm::dvec3 Pto = l->end2->GetXYZ();
-							glm::dvec3 delta = Pto-Pfrom;
-							double scale = TimeToStation/runlink;
-							agent->SetXYZ(Pto.x-scale*delta.x,Pto.y-scale*delta.y,Pto.z-scale*delta.z); //linear interpolation X seconds back from target node based on runlink
+							var Pfrom = l.end1.getXYZ();
+							var Pto = l.end2.getXYZ();
+							var delta = Pto-Pfrom;
+							var scale = timeToStation/runlink;
+							agent.setXYZ(Pto.x-scale*delta.x,Pto.y-scale*delta.y,Pto.z-scale*delta.z); //linear interpolation X seconds back from target node based on runlink
 						}
 						//agent->Face(*agent->Get<ABM::Agent*>("toNode")); //put the face last as we need the position
-						agent->Face(*l->end2);
-						Success=true;
+						agent.face(l.end2);
+						success=true;
 						break;
 					}
 				}
@@ -245,25 +243,14 @@
 			//if !Success, then do it again, but relax the direction? Would cover situation where agent has got to the end of the line and turned around
 			//you could always do this yourself though
 		}
-		if ((Success)&&(LineCode=='V')) std::cout<<"PositionAgent "<<agent->Name<<" fromNode="<<agent->Get<ABM::Agent*>("fromNode")->Name
-			<<" toNode="<<agent->Get<ABM::Agent*>("toNode")->Name<<" TimeToStn="<<TimeToStation
-			<<" Direction="<<Direction<<" v="<<agent->Get<float>("v")<<std::endl;
-		return Success;
-*/
+		return success;
 	};
 	//
  }
  ModelTrackernet.prototype.setup = function () {
 	 console.log('ModelTrackernet::setup');
-	 //TODO: initialisation here
+	 //initialisation here
 	 this.cesiumSetup(); //Cesium visualisation initialisation
-	 
-	 //TODO: add logic here which separates the visualisation from the ABM itself i.e. the model can
-	 //run headless, but there are overloads on agent visualisation properties which tie in with Cesium.
-	 //This can be made into a separate import later.
-	 //Need: Position, Transform, Size, Colour
-	 
-	 //TODO: this explicit creation of the link between the ABM and Cesium needs to change - you should just create the agent and set the properties
 	 
 	 //load stations and create agents (TODO: this should be a MapTube datasource)
 	 MapTube.data.core.acquireCSV('station-codes.csv',function(data) {
@@ -288,7 +275,6 @@
 		 //console.log(json);
 		 //"B" : { "0" : [ { "o": "ELE", "d": "LAM", "r": 120 },
 		 for (lineCode in json) {
-			 //var lineColour = this.lineColours[lineCode];
 			 var lineData = json[lineCode];
 			 for (var dir = 0; dir<2; dir++)
 			 {
@@ -302,10 +288,6 @@
 				}
 			 }
 		 }
-		 //console.log(this._linksPolylines);
-		 //this._linksPolylines.material = Cesium.Color.RED;
-		 //this.viewer.scene.primitives.add(this._linksPolylines);
-
 	 }.bind(this));
 	 
 	 

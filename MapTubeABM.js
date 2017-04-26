@@ -196,12 +196,29 @@ MapTube.ABM.Agent = function() {
 	//void Right(float d);
 	//void Up(float d); //added this
 	//void Down(float d); //added this
-	//void SetXYZ(const double X, const double Y, const double Z); //should be setxy
 	//void MoveTo(Agent& A);
 		
 
 	//measurement, calculation
 	this.distance = function(a) {} //passed another agent, return the distance between them
+	
+	//links - NOTE: links don't exist, it just returns the in or out edges from the graph vertex linked to the agent.
+	/*
+	 * @name inLinks return a list of links going into this agent, or the empty list if none
+	 */
+	this.inLinks = function() {
+		if (this.graphVertex)
+			return this.graphVertex._inEdges;
+		return [];
+	}
+	/*
+	 * @name outLinks return a list of links coming out of this agent, of the empty list if none
+	 */
+	this.outLinks = function() {
+		if (this.graphVertex)
+			return this.graphVertex._outEdges;
+		return [];
+	}
 
 } //end of agent class
 
@@ -227,10 +244,18 @@ MapTube.ABM.Agents = function() {
 }
 
 //class link
-//MapTube.ABM.Link = function() {
-//	//TODO:
-//	//link two agents together
-//}
+//this is a helper class which is extracted based on a Graph.Edge linking two agents together
+MapTube.ABM.Link = function() {
+	//TODO:
+	this.fromEdge = function(e) {
+		return {
+			
+		}
+	}
+	this.end1=null;
+	this.end2=null;
+	
+}
 
 //class agent time
 
