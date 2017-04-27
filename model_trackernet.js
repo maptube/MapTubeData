@@ -185,7 +185,7 @@
 	 */
 	this.positionAgent = function(agent,lineCode,timeToStation,nextStation,direction)
 	{
-		//TODO: from GeoGL
+		//from GeoGL
 		var success = false;
 		var agent_d = this.getAgent(nextStation); //destination node station
 		if (agent_d) {
@@ -317,7 +317,6 @@
 			var pos = Cesium.Cartesian3.fromDegrees(lon, lat);
 			tubeAgent.setXYZ(pos.x,pos.y,pos.z);
 		}
-		this.cesiumUpdate(); //HACK, call the update now for testing - you need this to create the entities on the globe
 	 }.bind(this));
 	 
 	 
@@ -325,8 +324,8 @@
  ModelTrackernet.prototype.step = function(ticks) {
 	 //TODO: logic for getting new data and moving agents around here
 	 //ticks in seconds
-	 
+	 console.log('ModelTrackernet.step');
  }
- ModelTrackernet.prototype.updateScene = function() {
-	 //TODO: visualisation update here i.e. link to globe
- }
+// ModelTrackernet.prototype.updateScene = function() {
+//	 //TODO: visualisation update here i.e. link to globe
+// }

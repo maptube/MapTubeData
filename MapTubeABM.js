@@ -42,17 +42,33 @@ MapTube.ABM.Matrix4 = function() {
 //class model
 MapTube.ABM.Model = function() {
 	console.log('MapTube.ABM.Model::constructor');
+	this.stepTimeSecs = 0; //number of seconds between calls to Model.Step
+	this.lastStepUpdate = performance.now();
 	
 	//properties
 	this.agentCount = 0; //global count of agents so each one gets a unique index number - this is NOT the number of live agents as it never decreases
 	this._agents = {}; //named with their class name, each is of class Agents
 	this._graphs = {}; //network graphs relating to agent interactions (if used)
 	
+	//step scene update timing loop
+	this.updateScene = function(timestamp) {
+		window.requestAnimationFrame(this.updateScene);
+		var ticks = timestamp-lastUpdate;
+		if (ticks<1000) return; //hack!
+		this.step(ticks/1000.0); //pass in how long since last update in seconds
+		this.lastStepUpdate=timestamp;		
+	}
+	
 	//methods
 	//virtual methods which need to be overridden in client code where the client provides the functionality
-	this.setup = function() { console.log('MapTube.ABM.Model::setup Override setup function'); }
-	this.step = function (ticks) { console.log('MapTube.ABM.Model::step Override step function'); }
-	this.updateScene = function() {}
+	this.setup = function() {
+		this.updateScene(); //kick off the step update loop
+		console.log('MapTube.ABM.Model::setup Override setup function');
+	}
+	this.step = function (ticks) {
+		console.log('MapTube.ABM.Model::step Override step function');
+		this.cesiumUpdate(); //HACK, call the update now for testing - you need this to create the entities on the globe
+	}
 	
 	//public methods
 	
