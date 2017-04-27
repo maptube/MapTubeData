@@ -107,9 +107,12 @@
 			//console.log("Graph: ",G);
 			for (var i=0; i<G._edges.length; i++) {
 				var e = G._edges[i];
+				var l = MapTube.ABM.Link(e); //turn a graph edge into an ABM link
 				//Cesium specific
-				var fromAgent = e._fromAgent;
-				var toAgent = e._toAgent;
+				//var fromAgent = e._userData._fromAgent; //this is how you do the direct edge manipulation
+				//var toAgent = e._userData._toAgent;
+				var fromAgent = l.fromAgent; //this is how you use the ABM Links class as a helper
+				var toAgent = l.toAgent;
 				G._cesiumLinksPolylines.add({
 					positions : [
 						new Cesium.Cartesian3(fromAgent.position.x, fromAgent.position.y, fromAgent.position.z),
@@ -184,13 +187,13 @@
 	{
 		//TODO: from GeoGL
 		var success = false;
-		var agent_d = this._agents.find('name',nextStation); //destination node station
-		if (agent_d.length>0) {
+		var agent_d = this.getAgent(nextStation); //destination node station
+		if (agent_d) {
 			if (timeToStation<=0) {
 				//Agent is currently "At Platform", so we don't have a to node - set to=from and a dummy velocity plus direction
 				//and let the animate code figure out the next station. We need to do this, otherwise tubes are going to sit in
 				//the same location until the next data frame
-				var fromNode = agent_d[0];
+				var fromNode = agent_d;
 				agent.fromNode=fromNode;
 				agent.toNode=fromNode; //yes, really fromNode
 				agent.v=5; //put in a fake velocity - 5ms-1 should do it - all we need to do is to trigger the arrived at station code in the animate loop
@@ -202,11 +205,11 @@
 				success=true;
 			}
 			else {
-				var links = agent_d[0]->inLinks();
+				var links = agent_d.inLinks();
 				for (var i=0; i<links.length; i++)
 				{
-					var l = links[i];
-					if ((l->Get<std::string>("lineCode")==strLineCode) && (l->Get<int>("direction")==Direction))
+					var l = MapTube.ABM.Link(links[i]); //we have to wrap a graph edge in a Link helper
+					if ((l.get("lineCode")==strLineCode) && (l.get("direction")==direction))
 					{
 						agent.fromNode=l.end1;
 						agent.toNode=l.end2;
@@ -219,22 +222,21 @@
 						//float velocity = dist/(float)TimeToStation; //calculate velocity needed to get to the next node when it says we should
 						var runlink = l.runlink;
 						var velocity = dist/runlink;
-						agent.v=velocity); //this is the timetabled speed for this runlink
+						agent.v=velocity; //this is the timetabled speed for this runlink
 						if (timeToStation>=runlink) {
 							//cerr<<"Error: TimeToStation greater than runlink! "<<agent->Name<<endl;
 							//in the annoying case when the time to station is greater than the time it's supposed to take to get there, position at the fromNode
 							var Pfrom = l.end1.getXYZ();
-							agent->SetXYZ(Pfrom.x,Pfrom.y,Pfrom.z);
+							agent.setXYZ(Pfrom.x,Pfrom.y,Pfrom.z);
 						}
 						else {
-							var Pfrom = l.end1.getXYZ();
-							var Pto = l.end2.getXYZ();
+							var Pfrom = l.fromAgent.getXYZ();
+							var Pto = l.toAgent.getXYZ();
 							var delta = Pto-Pfrom;
 							var scale = timeToStation/runlink;
 							agent.setXYZ(Pto.x-scale*delta.x,Pto.y-scale*delta.y,Pto.z-scale*delta.z); //linear interpolation X seconds back from target node based on runlink
 						}
-						//agent->Face(*agent->Get<ABM::Agent*>("toNode")); //put the face last as we need the position
-						agent.face(l.end2);
+						agent.face(l.toAgent); //put the face last as we need the position
 						success=true;
 						break;
 					}

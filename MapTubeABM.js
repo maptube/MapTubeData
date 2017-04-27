@@ -102,6 +102,8 @@ MapTube.ABM.Model = function() {
 		return null;
 	}
 	
+	//findAgent(propName,value)?
+	
 	//methods relating to links and graphs
 	
 	/*
@@ -126,10 +128,10 @@ MapTube.ABM.Model = function() {
 		}
 		var e=g.connectVertices(a1.id,a2.id);
 		//make link between each vertex in the graph and the agents - this allows us to query agent.outLinks or agent.inLinks
-		e._fromAgent=a1;
-		e._toAgent=a2;
-		a1.graphVertex[networkName]=e._fromVertex;
-		a2.graphVertex[networkName]=e._toVertex;
+		e._userData._fromAgent=a1;
+		e._userData._toAgent=a2;
+		a1.graphVertex[networkName]=e._userData._fromVertex;
+		a2.graphVertex[networkName]=e._userData._toVertex;
 		
 		return e;
 	}
@@ -244,17 +246,20 @@ MapTube.ABM.Agents = function() {
 }
 
 //class link
-//this is a helper class which is extracted based on a Graph.Edge linking two agents together
-MapTube.ABM.Link = function() {
-	//TODO:
-	this.fromEdge = function(e) {
-		return {
-			
-		}
+//This is a helper class which is extracted based on a Graph.Edge linking two agents together.
+//Return a view of an edge which is from the Agent point of view i.e. hide the underlying graph.
+MapTube.ABM.Link = function(e) {
+	return {
+		//properties
+		e : e,
+		label : e._label,
+		weight : e._weight,
+		fromAgent : e._userData._fromAgent,
+		toAgent : e._userData._toAgent,
+		//methods
+		get : function(propName) { return this.e._userData[propName]; },
+		set : function(propName,value) { this.e._userData.propName=value; }
 	}
-	this.end1=null;
-	this.end2=null;
-	
 }
 
 //class agent time
