@@ -8,6 +8,7 @@
 * peridically, but this project contains no visualisation code, only ABM functionality.
 *
 */
+//TODO: agents can't die
 
 //require graph.js
 
@@ -43,32 +44,53 @@ MapTube.ABM.Matrix4 = function() {
 MapTube.ABM.Model = function() {
 	console.log('MapTube.ABM.Model::constructor');
 	this.stepTimeSecs = 0; //number of seconds between calls to Model.Step
-	this.lastStepUpdate = performance.now();
+	this.stepTimeMillis = 0; //stepTimeSecs*1000
+	this.lastUpdateModelTime = performance.now();
 	
 	//properties
 	this.agentCount = 0; //global count of agents so each one gets a unique index number - this is NOT the number of live agents as it never decreases
+	this._deadAgents = []; //list of the names of agents killed this cycle which will need to be removed from the visualisation
 	this._agents = {}; //named with their class name, each is of class Agents
 	this._graphs = {}; //network graphs relating to agent interactions (if used)
 	
-	//step scene update timing loop
-	this.updateScene = function(timestamp) {
-		window.requestAnimationFrame(this.updateScene);
-		var ticks = timestamp-lastUpdate;
-		if (ticks<1000) return; //hack!
-		this.step(ticks/1000.0); //pass in how long since last update in seconds
-		this.lastStepUpdate=timestamp;		
+	//step scene update timing loop - calls userModel.step function at the correct frequency
+	this.updateModel = function(timestamp) {
+		//console.log('MapTube.ABM.Model.updateModel1 '+timestamp);
+		window.requestAnimationFrame(this.updateModel.bind(this));
+		var ticks = timestamp-this.lastUpdateModelTime;
+		//console.log('MapTube.ABM.Model.updateModel2 '+timestamp+' '+ticks);
+		if (ticks<this.stepTimeMillis) return; //only call the step function when the time comes around
+		//reset the dead agent list
+		this._deadAgents = [];
+		this.step(ticks/1000.0); //call user defined step function and pass in how long since last update in seconds
+		this.lastUpdateModelTime=timestamp;		
 	}
 	
 	//methods
 	//virtual methods which need to be overridden in client code where the client provides the functionality
-	this.setup = function() {
-		this.updateScene(); //kick off the step update loop
-		console.log('MapTube.ABM.Model::setup Override setup function');
+	//this.setup = function() {
+	//	this.updateScene(); //kick off the step update loop
+	//	console.log('MapTube.ABM.Model::setup Override setup function');
+	//}
+	//this.step = function (ticks) {
+	//	console.log('MapTube.ABM.Model::step Override step function');
+	//	this.cesiumUpdate(); //HACK, call the update now for testing - you need this to create the entities on the globe
+	//}
+	//I've changed the Model.setup and Model.step functions as they don't work in Javascript the same way as NetLogo, or at least,
+	//it's not worth making them work in the same way. All this class's setup is done in its constructor.
+	//The user model can have a setup function, but the user must call it himself.
+	//The user model contains a step function, but animation is started by the user model calling run(secs) to kick off subsequent
+	//calls to userModel.step every "secs" seconds.
+	//The user is responsible for updating the display with the current view of the agents in the step function as the ABM is headless.
+	this.step = function(secs) { console.log('MapTube.ABM.Model::step Override step function'); }
+	this.run = function(stepTimeSecs)
+	{
+		this.stepTimeSecs=stepTimeSecs;
+		this.stepTimeMillis=stepTimeSecs*1000;
+		//now kick off the first animation frame update
+		this.updateModel(0);
 	}
-	this.step = function (ticks) {
-		console.log('MapTube.ABM.Model::step Override step function');
-		this.cesiumUpdate(); //HACK, call the update now for testing - you need this to create the entities on the globe
-	}
+	
 	
 	//public methods
 	
@@ -148,6 +170,8 @@ MapTube.ABM.Model = function() {
 		e._userData._toAgent=a2;
 		a1.graphVertex[networkName]=e._userData._fromVertex;
 		a2.graphVertex[networkName]=e._userData._toVertex;
+		
+		g.isDirty=true; //flag it for redraw on next frame
 		
 		return e;
 	}

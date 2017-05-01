@@ -36,6 +36,7 @@
 	var modelTrackernet = new ModelTrackernet();
 	modelTrackernet.viewer=viewer;
 	modelTrackernet.setup();
+	modelTrackernet.run(1.0); //start model running with 1 second update rate
 	viewer.zoomTo(viewer.entities); //todo: you need the box and viewport code from geogl
 	
 //	var lastUpdate = performance.now();
