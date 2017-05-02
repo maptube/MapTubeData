@@ -354,11 +354,11 @@
 	//TODO: logic for getting new data and moving agents around here
 	//ticks in seconds
 	console.log('ModelTrackernet.step');
-	for (var i=0; i<this._agents['tube'].length; i++)
+	/*for (var i=0; i<this._agents['tube'].length; i++)
 	{
 		var a=this._agents['tube'][i];
 		if (a) { a.position.x+=10; a.position.y+=10; a.position.z+=10; a.isDirty=true; }
-	}
+	}*/
 	this.cesiumUpdate();
  }
 // ModelTrackernet.prototype.updateScene = function() {
