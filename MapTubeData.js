@@ -131,10 +131,15 @@ MapTube.data.Census2011.variable = function (varName) {
  * Transport for London data for the Underground (Trackernet)
  */
 
-//async, returns immediately
+//async, returns immediately, callback returning (csv data, filetime)
 MapTube.data.TfL.underground.positions = function (callback) {
 	var uri = 'http://loggerhead.casa.ucl.ac.uk/api.svc/f/trackernet?pattern=trackernet_*.csv';
-	MapTube.data.core.acquireCSV(uri,callback);
+	MapTube.data.core.acquireCSV(uri,function(csv,xmlhttp) {
+		//Content-Disposition: attachment; filename="trackernet_20170502_215400.csv"
+		var hdr = xmlhttp.getResponseHeader('Content-Disposition');
+		//TODO: now get it out...
+		callback.call(this,csv,filetime);
+	});
 }
 
 MapTube.data.TfL.underground.status = function () {

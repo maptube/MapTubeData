@@ -106,8 +106,9 @@
 		//NOTE: stations don't ever get killed, so we can ignore them and only look for tubes
 		for (var i=0; i<this._deadAgents.length; i++)
 		{
-			var name = this._deadAgents[i];
-			this._cesiumTubeDataSource.entities.removeById(name); //returns true on success
+			//NOTE: changed _deadAgents to be the actual agent object, not just the name
+			//var name = this._deadAgents[i];
+			//this._cesiumTubeDataSource.entities.removeById(name); //returns true on success
 		}
 		
 		
@@ -240,13 +241,13 @@
 					var l = MapTube.ABM.Link(links[i]); //we have to wrap a graph edge in a Link helper
 					if ((l.get("lineCode")==strLineCode) && (l.get("direction")==direction))
 					{
-						agent.fromNode=l.end1;
-						agent.toNode=l.end2;
+						agent.fromNode=l.fromAgent;
+						agent.toNode=l.toAgent;
 						agent.direction=l.direction;
 						agent.lineCode=strLineCode;
 //					agent->SetColour(LineCodeToVectorColour(LineCode)); //NO! Colour only set on hatch
 						//interpolate position based on runlink and time to station
-						var dist = l.end2.distance(l.end1);
+						var dist = l.toAgent.distance(l.fromAgent);
 						//NOTE: dist/TimeToStation is wrong for the velocity - this is for the full link distance, but we're using the time to station to position based on velocity (runlink and distance)
 						//float velocity = dist/(float)TimeToStation; //calculate velocity needed to get to the next node when it says we should
 						var runlink = l.runlink;
@@ -324,7 +325,7 @@
 	 
 	 
 	 //obtain latest data from API
-	 MapTube.data.TfL.underground.positions(function(data) {
+	 MapTube.data.TfL.underground.positions(function(data,filetime) {
 		//console.log(data);
 		
 		for (var i=0; i<data.length; i++)
