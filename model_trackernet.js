@@ -241,14 +241,14 @@
 				for (var i=0; i<links.length; i++)
 				{
 					var l = MapTube.ABM.Link(links[i]); //we have to wrap a graph edge in a Link helper
-					console.log("TESTING: ",agent.name,nextStation,direction,l.get('direction'));
+					//console.log("TESTING: ",agent.name,nextStation,direction,l.get('direction'),agent);
 					if (l.get('direction')==direction)
 					{
 						agent.fromNode=l.fromAgent;
 						agent.toNode=l.toAgent;
 						agent.direction=direction;
 						agent.lineCode=lineCode;
-						console.log("agent=",agent);
+						//console.log("agent=",agent);
 //					agent->SetColour(LineCodeToVectorColour(LineCode)); //NO! Colour only set on hatch
 						//interpolate position based on runlink and time to station
 						var dist = l.toAgent.distance(l.fromAgent);
@@ -275,11 +275,11 @@
 						break;
 					}
 				}
+				if (!success) console.log("ERROR: no direction: ",agent.name,direction,lineCode,nextStation,links);
 			}
 			//if !Success, then do it again, but relax the direction? Would cover situation where agent has got to the end of the line and turned around
 			//you could always do this yourself though
 		}
-		if (!success) console.log("ERROR: no direction: ",agent.name,direction,lineCode,nextStation,links);
 		return success;
 	};
 	//
@@ -305,6 +305,7 @@
 			var pos = Cesium.Cartesian3.fromDegrees(lon, lat, 0.0); //TODO: this needs to be half the height
 			stnAgent.setXYZ(pos.x,pos.y,pos.z);
 		}
+		console.log("stations loaded")
 	}.bind(this));
 	
 	//now we have the station nodes, make the relevant links between them to build the network
@@ -321,10 +322,11 @@
 					var e = this.createLink('line_'+lineCode,lnk.o,lnk.d);
 					e._userData.weight = lnk.r;
 					e._userData.direction = dir;
-					//console.log('CreateLink: ',lineCode,link,e);
+					console.log('CreateLink: ',lineCode,lnk.o,lnk.d);
 				}
 			}
 		}
+		console.log("network loaded");
 	}.bind(this));
 	
 	
