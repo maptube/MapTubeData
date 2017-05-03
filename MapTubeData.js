@@ -97,6 +97,25 @@ MapTube.data.core.acquireJSON = function (url,callback) {
 }
 
 /*
+ * parseYYYYMMDD_HHMMSS Parse a time from a filename in the form 20170503_101558 and return a Date object
+ * TODO: could do with some error checking and safety
+ * @param ft string time in the form YYYYMMDD_HHMMSS
+ * @returns A Date object, or null if invalid
+ */
+MapTube.data.core.parseYYYYMMDD_HHMMSS = function(ft) {
+	//YYYYMMDD_HHMMSS
+	var year=parseInt(ft.substring(0,4));
+	var month=parseInt(ft.substring(4,6));
+	var day=parseInt(ft.substring(6,8));
+	var hour=parseInt(ft.substring(9,11));
+	var minute=parseInt(ft.substring(11,13));
+	var second=parseInt(ft.substring(13,15));
+	//NOTE: month-1 as January=0 in JS Date, but January=1 in the string parameter
+	var d = new Date(year,month-1,day,hour,minute,second,0);
+	return d;
+}
+
+/*
  * @name safeParseFloat Parse a floating point field on an object, but in a safe way.
  * @param ob
  * @param fieldName
@@ -137,8 +156,13 @@ MapTube.data.TfL.underground.positions = function (callback) {
 	MapTube.data.core.acquireCSV(uri,function(csv,xmlhttp) {
 		//Content-Disposition: attachment; filename="trackernet_20170502_215400.csv"
 		var hdr = xmlhttp.getResponseHeader('Content-Disposition');
-		//TODO: now get it out...
-		callback.call(this,csv,filetime);
+		var filename = '', file_dt=null;
+		var pos = hdr.indexOf('filename=');
+		if (pos>=0) {
+			filename = hdr.substring(pos+10,pos+40); //trackernet_yyyymmdd_hhmmss.csv
+			file_dt = MapTube.data.core.parseYYYYMMDD_HHMMSS(filename.substring(11,26));
+		}
+		callback.call(this,csv,file_dt);
 	});
 }
 

@@ -92,7 +92,7 @@
 					//existing agent with changed (dirty) attributes e.g. position, colour, size
 					else
 					{
-						console.log("update position: "+a.name);
+						//console.log("update position: "+a.name);
 						var entity = a.__cesiumEntity;
 						entity.position = new Cesium.Cartesian3(a.position.x, a.position.y, a.position.z);
 						//todo: update the rotation matrix as well, and at some point you might want to do the colour, size and shape?
@@ -228,35 +228,39 @@
 				agent.toNode=fromNode; //yes, really fromNode
 				agent.v=5; //put in a fake velocity - 5ms-1 should do it - all we need to do is to trigger the arrived at station code in the animate loop
 				agent.direction=direction;
-				agent.lineCode=strLineCode;
+				agent.lineCode=lineCode;
 //			agent->SetColour(LineCodeToVectorColour(LineCode)); //NO! Colour only set on hatch
 				var P = fromNode.getXYZ();
 				agent.setXYZ(P.x,P.y,P.z); //position agent on its toNode
 				success=true;
 			}
 			else {
-				var links = agent_d.inLinks();
+				//console.log("agent_d=",agent_d);
+				var links = agent_d.inLinks('line_'+lineCode); //get links for specific line network graph i.e. line_B
+				//console.log("links=",links);
 				for (var i=0; i<links.length; i++)
 				{
 					var l = MapTube.ABM.Link(links[i]); //we have to wrap a graph edge in a Link helper
-					if ((l.get("lineCode")==strLineCode) && (l.get("direction")==direction))
+					console.log("TESTING: ",agent.name,nextStation,direction,l.get('direction'));
+					if (l.get('direction')==direction)
 					{
 						agent.fromNode=l.fromAgent;
 						agent.toNode=l.toAgent;
-						agent.direction=l.direction;
-						agent.lineCode=strLineCode;
+						agent.direction=direction;
+						agent.lineCode=lineCode;
+						console.log("agent=",agent);
 //					agent->SetColour(LineCodeToVectorColour(LineCode)); //NO! Colour only set on hatch
 						//interpolate position based on runlink and time to station
 						var dist = l.toAgent.distance(l.fromAgent);
 						//NOTE: dist/TimeToStation is wrong for the velocity - this is for the full link distance, but we're using the time to station to position based on velocity (runlink and distance)
 						//float velocity = dist/(float)TimeToStation; //calculate velocity needed to get to the next node when it says we should
-						var runlink = l.runlink;
+						var runlink = l.get('runlink');
 						var velocity = dist/runlink;
 						agent.v=velocity; //this is the timetabled speed for this runlink
 						if (timeToStation>=runlink) {
 							//cerr<<"Error: TimeToStation greater than runlink! "<<agent->Name<<endl;
 							//in the annoying case when the time to station is greater than the time it's supposed to take to get there, position at the fromNode
-							var Pfrom = l.end1.getXYZ();
+							var Pfrom = l.fromAgent.getXYZ();
 							agent.setXYZ(Pfrom.x,Pfrom.y,Pfrom.z);
 						}
 						else {
@@ -275,18 +279,19 @@
 			//if !Success, then do it again, but relax the direction? Would cover situation where agent has got to the end of the line and turned around
 			//you could always do this yourself though
 		}
+		if (!success) console.log("ERROR: no direction: ",agent.name,direction,lineCode,nextStation,links);
 		return success;
 	};
 	//
  }
  ModelTrackernet.prototype.setup = function () {
-	 console.log('ModelTrackernet::setup');
-	 //initialisation here
-	 this.cesiumSetup(); //Cesium visualisation initialisation
-	 
-	 //load stations and create agents (TODO: this should be a MapTube datasource)
-	 MapTube.data.core.acquireCSV('station-codes.csv',function(data) {
-		 for (var i=0; i<data.length; i++) {
+	console.log('ModelTrackernet::setup');
+	//initialisation here
+	this.cesiumSetup(); //Cesium visualisation initialisation
+	
+	//load stations and create agents (TODO: this should be a MapTube datasource)
+	MapTube.data.core.acquireCSV('station-codes.csv',function(data) {
+		for (var i=0; i<data.length; i++) {
 			//#code,NPTGCode,lines,lon,lat,name
 			//ACT,9400ZZLUACT1,DP,-0.28025120353611,51.50274977300050,Acton Town
 			var stationCode = data[i]['#code']; //OK, I know it needs to change
@@ -299,34 +304,35 @@
 			stnAgent.name=stationCode;
 			var pos = Cesium.Cartesian3.fromDegrees(lon, lat, 0.0); //TODO: this needs to be half the height
 			stnAgent.setXYZ(pos.x,pos.y,pos.z);
-		 }
-	 }.bind(this));
-	 
-	 //now we have the station nodes, make the relevant links between them to build the network
-	 MapTube.data.core.acquireJSON('tube-network.json',function(json) {
-		 //console.log(json);
-		 //"B" : { "0" : [ { "o": "ELE", "d": "LAM", "r": 120 },
-		 for (lineCode in json) {
-			 var lineData = json[lineCode];
-			 for (var dir = 0; dir<2; dir++)
-			 {
+		}
+	}.bind(this));
+	
+	//now we have the station nodes, make the relevant links between them to build the network
+	MapTube.data.core.acquireJSON('tube-network.json',function(json) {
+		//console.log(json);
+		//"B" : { "0" : [ { "o": "ELE", "d": "LAM", "r": 120 },
+		for (lineCode in json) {
+			var lineData = json[lineCode];
+			for (var dir = 0; dir<2; dir++)
+			{
 				var links = lineData[dir];
 				for (var i=0; i<links.length; i++) {
-					var link = links[i];
-					var e = this.createLink('line_'+lineCode,link.o,link.d);
-					e.weight = link.r;
-					e.direction = dir;
+					var lnk = links[i];
+					var e = this.createLink('line_'+lineCode,lnk.o,lnk.d);
+					e._userData.weight = lnk.r;
+					e._userData.direction = dir;
 					//console.log('CreateLink: ',lineCode,link,e);
 				}
-			 }
-		 }
-	 }.bind(this));
-	 
-	 
-	 
-	 //obtain latest data from API
-	 MapTube.data.TfL.underground.positions(function(data,filetime) {
-		//console.log(data);
+			}
+		}
+	}.bind(this));
+	
+	
+	
+	//obtain latest data from API
+	MapTube.data.TfL.underground.positions(function(data,filetime) {
+		console.log(data);
+		console.log("trackernet filetime: ",filetime);
 		
 		for (var i=0; i<data.length; i++)
 		{
@@ -334,9 +340,14 @@
 			var lineCode = data[i].linecode;
 			var tripnumber = data[i].tripnumber;
 			var setnumber = data[i].setnumber;
-			var lat=MapTube.data.safeParseFloat(data[i],'lat');
-			var lon=MapTube.data.safeParseFloat(data[i],'lon');
-			if (isNaN(lat)||isNaN(lon)) continue;
+			if (lineCode.length==0) continue; //traps blank final line on the csv resulting in data[i] with no data in it
+			//var lat=MapTube.data.safeParseFloat(data[i],'lat');
+			//var lon=MapTube.data.safeParseFloat(data[i],'lon');
+			//if (isNaN(lat)||isNaN(lon)) continue;
+			var direction = parseInt(data[i].platformdirectioncode);
+			var destCode = data[i].destinationcode; //numeric
+			var nextStation = data[i].stationcode;
+			var timeToStation = parseFloat(data[i]['timetostation(secs)']);
 			var agentName = lineCode+'_'+setnumber+'_'+tripnumber;
 			
 			//create the agent and set his properties from the data line
@@ -344,12 +355,17 @@
 			var tubeAgent = this.createAgents(1,'tube')[0]; //TODO: make this more elegant for cases when you only want one created
 			tubeAgent.name=agentName;
 			tubeAgent.lineCode=lineCode;
-			var pos = Cesium.Cartesian3.fromDegrees(lon, lat);
-			tubeAgent.setXYZ(pos.x,pos.y,pos.z);
+			//TODO: need some more properties here...
+			//var pos = Cesium.Cartesian3.fromDegrees(lon, lat);
+			//tubeAgent.setXYZ(pos.x,pos.y,pos.z);
+			//var dt = new Date(filetime.getTime()+timeToStation*1000);
+			//TODO: here! need the delta seconds offset
+			var dt = timeToStation;
+			var success = this.positionAgent(tubeAgent,lineCode,dt,nextStation,direction);
+			if (!success) console.log("position agent failed: ",data[i],tubeAgent);
 		}
-	 }.bind(this));
-	 
-	 
+	}.bind(this));
+
  }
  ModelTrackernet.prototype.step = function(ticks) {
 	//TODO: logic for getting new data and moving agents around here

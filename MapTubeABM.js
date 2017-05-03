@@ -26,6 +26,16 @@ MapTube.ABM.Vector3 = function() {
 	this.z=0;
 	//methods
 	//todo: constructor(x,y,z)?
+	this.add = function() {}
+	this.sub = function() {}
+	this.normalise = function() { //standard normalise, returns normalised vector
+		var mag = Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.z);
+		var v = new Vector3();
+		v.x=this.x/mag; v.y=this.y/mag; v.z=this.z/mag;
+		return v;
+	}
+	//dot product
+	//cross product
 }
 MapTube.ABM.Matrix4 = function() {
 	//properties
@@ -168,8 +178,8 @@ MapTube.ABM.Model = function() {
 		//make link between each vertex in the graph and the agents - this allows us to query agent.outLinks or agent.inLinks
 		e._userData._fromAgent=a1;
 		e._userData._toAgent=a2;
-		a1.graphVertex[networkName]=e._userData._fromVertex;
-		a2.graphVertex[networkName]=e._userData._toVertex;
+		a1.graphVertex[networkName]=e._fromVertex;
+		a2.graphVertex[networkName]=e._toVertex;
 		
 		g.isDirty=true; //flag it for redraw on next frame
 		
@@ -231,8 +241,62 @@ MapTube.ABM.Agent = function() {
 	//random-z-cor
 	//pxcor()
 	//pycor()
-	//void Face(Agent& A);
-	//void Forward(float d);
+	this.face = function(a) {
+		//TODO: make this agent face the 'a' agent
+		//from geogl
+		//following assumes agent actually has a mesh that we can get the matrix from
+		/*glm::dvec3 P1 = GetXYZ(); //this is me
+		glm::dvec3 P2 = A.GetXYZ(); //this is who I want to look at
+
+		//HACK!
+		if (glm::distance(P1,P2)<0.000000001f) return; //error, asked to face an agent that I'm virtually on top of
+
+		//_pAgentMesh->modelMatrix = glm::lookAt(P1,P2,glm::vec3(0,0,1)); //assumes agents exist on xy plane with up in +ve z direction
+		glm::vec3 f(glm::normalize(P2-P1)); //center - eye
+		glm::vec3 s(glm::normalize(glm::cross(f, glm::vec3(0,0,1)))); //(0,0,1)=up
+		glm::vec3 u(glm::cross(s, f));
+
+		//transpose of view matrix glm::lookAt calculation and keep the position as P1
+		glm::mat4 Result(1);
+		Result[0][0] = s.x;
+		Result[0][1] = s.y;
+		Result[0][2] = s.z;
+		Result[1][0] = u.x;
+		Result[1][1] = u.y;
+		Result[1][2] = u.z;
+		Result[2][0] =-f.x;
+		Result[2][1] =-f.y;
+		Result[2][2] =-f.z;
+		//Result[3][0] =-dot(s, eye);
+		//Result[3][1] =-dot(u, eye);
+		//Result[3][2] = dot(f, eye);
+		Result[3][0]=(float)P1.x;
+		Result[3][1]=(float)P1.y;
+		Result[3][2]=(float)P1.z;
+		agentMatrix = Result;
+		if (_pAgentMesh)
+			_pAgentMesh->SetMatrix(Result); //and set the mesh matrix if there is actually a mesh
+		*/
+	}
+	this.forward = function(d) {
+		//from geogl
+		/*
+		//new code which can handle the absence of a model matrix (i.e. no mesh)
+		//set the position on the agent matrix
+		//direct manipulation of position
+		agentMatrix[3][0]=(float)position.x;
+		agentMatrix[3][1]=(float)position.y;
+		agentMatrix[3][2]=(float)position.z;
+		agentMatrix = glm::translate(agentMatrix,glm::vec3(0,0,-d));
+		//now get the position back
+		position.x=(float)agentMatrix[3][0];
+		position.y=(float)agentMatrix[3][1];
+		position.z=(float)agentMatrix[3][2];
+		//and set the mesh if it exists
+		if (_pAgentMesh)
+			_pAgentMesh->SetMatrix(agentMatrix);
+		*/
+	}
 	//void Back(float d);
 	//void Left(float d);
 	//void Right(float d);
@@ -242,23 +306,37 @@ MapTube.ABM.Agent = function() {
 		
 
 	//measurement, calculation
-	this.distance = function(a) {} //passed another agent, return the distance between them
+	/*
+	 * @name distance Passed another agent, return the distance between them.
+	 * @param a The agent to find the distance to
+	 * @returns the distance between 'this' and 'a'
+	 */
+	this.distance = function(a) {
+		var dx=this.position.x-a.position.x;
+		var dy=this.position.y-a.position.y;
+		var dz=this.position.z-a.position.z;
+		var d2 = dx*dx+dy*dy+dz*dz;
+		if (d2<=0) return 0; //guard against underflow
+		return Math.sqrt(dx*dx+dy*dy+dz*dz);
+	}
 	
 	//links - NOTE: links don't exist, it just returns the in or out edges from the graph vertex linked to the agent.
 	/*
 	 * @name inLinks return a list of links going into this agent, or the empty list if none
 	 */
-	this.inLinks = function() {
+	this.inLinks = function(networkName) {
 		if (this.graphVertex)
-			return this.graphVertex._inEdges;
+			if (this.graphVertex[networkName])
+				return this.graphVertex[networkName]._inEdges;
 		return [];
 	}
 	/*
 	 * @name outLinks return a list of links coming out of this agent, of the empty list if none
 	 */
-	this.outLinks = function() {
+	this.outLinks = function(networkName) {
 		if (this.graphVertex)
-			return this.graphVertex._outEdges;
+			if (this.graphVertex[networkName])
+				return this.graphVertex[networkName]._outEdges;
 		return [];
 	}
 
