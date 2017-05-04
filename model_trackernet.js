@@ -56,7 +56,7 @@
 			var agents = this._agents[c];
 			for (var i=0; i<agents.length; i++) {
 				var a = agents[i]; //this is the agent
-				if (a.isDirty)
+				if ((a.isVisible)&&(a.isDirty))
 				{
 					//new agent
 					if (!a.hasOwnProperty('__cesiumEntity')) {
@@ -242,8 +242,9 @@
 				{
 					var l = MapTube.ABM.Link(links[i]); //we have to wrap a graph edge in a Link helper
 					//console.log("TESTING: ",agent.name,nextStation,direction,l.get('direction'),agent);
-					if (l.get('direction')==direction)
+					if ((links.length==1)||(l.get('direction')==direction)) //NOTE!: links.length==1 is a trap for when the direction is wrong from the TfL realtime data
 					{
+						//TODO: maybe log whenever this spots a wrong direction?
 						agent.fromNode=l.fromAgent;
 						agent.toNode=l.toAgent;
 						agent.direction=direction;
@@ -336,19 +337,19 @@
 					var e = this.createLink('line_'+lineCode,lnk.o,lnk.d);
 					e._userData.weight = lnk.r;
 					e._userData.direction = dir;
-					console.log('CreateLink: ',lineCode,lnk.o,lnk.d);
+					//console.log('CreateLink: ',lineCode,lnk.o,lnk.d);
 				}
 			}
 		}
-		console.log("network loaded");
-		this._debugPrintNetwork();
+		//console.log("network loaded");
+		//this._debugPrintNetwork();
 	}.bind(this));
 	
 	
 	
 	//obtain latest data from API
 	MapTube.data.TfL.underground.positions(function(data,filetime) {
-		console.log(data);
+		//console.log(data);
 		console.log("trackernet filetime: ",filetime);
 		
 		for (var i=0; i<data.length; i++)
@@ -378,8 +379,11 @@
 			//var dt = new Date(filetime.getTime()+timeToStation*1000);
 			//TODO: here! need the delta seconds offset
 			var dt = timeToStation;
-			var success = this.positionAgent(tubeAgent,lineCode,dt,nextStation,direction);
-			if (!success) console.log("position agent failed: ",data[i],tubeAgent);
+			var success = this.positionAgent(tubeAgent,lineCode,0/*dt*/,nextStation,direction);
+			if (!success) {
+				console.log("position agent failed: ",data[i],tubeAgent);
+				tubeAgent.isVisible=false;
+			}
 		}
 	}.bind(this));
 

@@ -24,6 +24,38 @@ MapTube.data.core.stripQuotes = function (text)
 		text = text.substr(1,text.length -2);
 	}
 	return text;
+}
+
+/*
+ * @name splitCSVLine Split a CSV line, handling commas inside quotes correctly
+ * @param line The line to be split
+ * @returns An array of the fields in the CSV line with the outer quotes removed (if present in the original line).
+ */
+MapTube.data.core.splitCSVLine = function (line)
+{
+	var fields = [];
+	var text='';
+	var inQuote=false;
+	for (var i=0; i<line.length; i++)
+	{
+		var ch = line[i];
+		switch (ch) {
+			case '\"' :
+				inQuote=!inQuote; //what happens with this: "abc"d,"xyz" at the moment you get [abcd,xyz]
+				break;
+			case ',' :
+				if (inQuote) text+=ch;
+				else { fields.push(text); text=""; }
+				break;
+			case ' ':
+				if ((inQuote)||(text.length>0)) text+=ch; //don't allow whitespace at start of field
+				break;
+			default :
+				text+=ch;
+		}
+	}
+	if (text.length>0) fields.push(text);
+	return fields;
 } 
 
 //TODO: need to make the csv handling more resilent regarding quotes and commas - copy the geogl code
@@ -34,15 +66,17 @@ MapTube.data.core.parseCSV = function (text) {
 	var csv = [];
 	var lines = text.split(/\r?\n/);
 	
-	var headers = lines[0].split(','); //assumes no quotes
-	for (var i=0; i<headers.length; i++) headers[i]=MapTube.data.core.stripQuotes(headers[i]);
+	//var headers = lines[0].split(','); //assumes no quotes
+	//for (var i=0; i<headers.length; i++) headers[i]=MapTube.data.core.stripQuotes(headers[i]);
+	var headers = MapTube.data.core.splitCSVLine(lines[0]); //correctly splits commas in quotes and removes quotes
 	for (var i=1; i<lines.length; i++) {
-		var line = lines[i].split(','); //assumes no quotes
+		//var line = lines[i].split(','); //assumes no quotes
+		var line = MapTube.data.core.splitCSVLine(lines[i]); //correctly splits line and removes quotes
 		//if any columns from the header are missing then we skip them, any extra columns on the end of the line[i] are dropped
 		var cmax = line.length;
 		var ob = {}
 		for (var c=0; c<headers.length; c++) {
-			if (line[c]) line[c] = MapTube.data.core.stripQuotes(line[c]);
+			//if (line[c]) line[c] = MapTube.data.core.stripQuotes(line[c]); //not needed - splitCSVLine
 			if (c<cmax) {
 				ob[headers[c]]=line[c]; //NOTE: this is always going to be a string
 			}

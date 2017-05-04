@@ -200,7 +200,7 @@ MapTube.ABM.Model = function() {
 
 //class agent
 MapTube.ABM.Agent = function() {
-	console.log('MapTube.ABM.Agent::constructor');
+	//console.log('MapTube.ABM.Agent::constructor');
 	this.isDirty=true; //flag used when a visualisation property changes and the agent needs to be redrawn
 	this.position = new MapTube.ABM.Vector3(); //copy of position so agents without meshes can have position
 	this.agentMatrix = new MapTube.ABM.Matrix4(); //copy of matrix so agents without meshes can have position and orientation
@@ -208,6 +208,7 @@ MapTube.ABM.Agent = function() {
 	//position
 	//orientation
 	//shape
+	this.isVisible=true;
 	this.size = 1.0;
 	
 
