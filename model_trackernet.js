@@ -284,6 +284,20 @@
 	};
 	//
  }
+ ModelTrackernet.prototype._debugPrintNetwork = function() {
+	console.log('ModelTrackernet._debugPrintNetwork');
+	for (var c in this._graphs) {
+		console.log('Network: ',c);
+		var G = this._graphs[c];
+		//console.log('G: ',G);
+		for (var i=0; i<G._edges.length; i++) {
+			var e = G._edges[i];
+			var lnk = MapTube.ABM.Link(e);
+			console.log('LINK: ',lnk.get('direction'),lnk.fromAgent.name,lnk.toAgent.name);
+		}
+	}
+	console.log('end of _debugPrintNetwork');
+ }
  ModelTrackernet.prototype.setup = function () {
 	console.log('ModelTrackernet::setup');
 	//initialisation here
@@ -327,6 +341,7 @@
 			}
 		}
 		console.log("network loaded");
+		this._debugPrintNetwork();
 	}.bind(this));
 	
 	
