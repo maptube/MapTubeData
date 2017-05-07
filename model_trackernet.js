@@ -9,11 +9,11 @@
  ModelTrackernet.prototype = new MapTube.ABM.Model(); //inherit from MapTube's ABM Model class
  ModelTrackernet.prototype.constructor=MapTube.ABM.Model;
  function ModelTrackernet() {
-	 console.log('ModelTrackernet::constructor');
-	 //MapTube.ABM.Model.call(this);
+	console.log('ModelTrackernet::constructor');
+	//MapTube.ABM.Model.call(this);
 	 
-	 //constants
-	 this.lineColours = {
+	//constants
+	this.lineColours = {
 		'B' : Cesium.Color.fromCssColorString('#b06110'),
 		'C' : Cesium.Color.fromCssColorString('#ef2e24'),
 		'D' : Cesium.Color.fromCssColorString('#008640'),
@@ -24,16 +24,19 @@
 		'P' : Cesium.Color.fromCssColorString('#1c3f95'),
 		'V' : Cesium.Color.fromCssColorString('#009ddc'),
 		'W' : Cesium.Color.fromCssColorString('#86cebc')
-	 }
-	 
-	 //Cesium visualisation hooks here - to be moved into a separate unit at a later point in time
-	 //This section makes the link between the agent model and how it displays on the globe.
-	 //There are two ways that this can be done: overload all methods and properties that change the visualisation
-	 //with ones that update Cesium directly, or alternatively, let the ABM run headless and do a screen update
-	 //periodically. You could used "dirty" flags for performance.
-	 //On reflection, the second method seems better.
-	 //TODO:
-	 this.cesiumSetup = function() {
+	}
+	
+	//properties
+	this.currentDataDT = null; //timestamp on the last data downloaded from the API 
+
+	//Cesium visualisation hooks here - to be moved into a separate unit at a later point in time
+	//This section makes the link between the agent model and how it displays on the globe.
+	//There are two ways that this can be done: overload all methods and properties that change the visualisation
+	//with ones that update Cesium directly, or alternatively, let the ABM run headless and do a screen update
+	//periodically. You could used "dirty" flags for performance.
+	//On reflection, the second method seems better.
+	//TODO:
+	this.cesiumSetup = function() {
 		//setup and initialisation for the Cesium visualisation
 		//put stations and tube agents into separate custom datasources as stations don't move
 		this._cesiumStationDataSource = new Cesium.CustomDataSource('stations');
@@ -42,8 +45,8 @@
 		this._cesiumTubeDataSource = new Cesium.CustomDataSource('trackernet');
 		this.viewer.dataSources.add(this._cesiumTubeDataSource);
 		//polylines are created for each Graph, with the cesium entity hooked into the graph object
-	 }
-	 this.cesiumUpdate = function() {
+	}
+	this.cesiumUpdate = function() {
 		console.log('ModelTrackernet::cesiumUpdate');
 		//NOTE: agents are tagged with __cesiumEntity which contains the cesium entity displayed on the globe, which allows for manipulation
 		//if this was outside the model, then pass in viewer and Model - this might be a good way of separating
@@ -267,8 +270,9 @@
 						else {
 							var Pfrom = l.fromAgent.getXYZ();
 							var Pto = l.toAgent.getXYZ();
-							var delta = Pto-Pfrom;
+							var delta = Pto.subtract(Pfrom); //delta=Pto-Pfrom
 							var scale = timeToStation/runlink;
+							//console.log('positionAgent: ',Pfrom,Pto,delta,scale,timeToStation,runlink);
 							agent.setXYZ(Pto.x-scale*delta.x,Pto.y-scale*delta.y,Pto.z-scale*delta.z); //linear interpolation X seconds back from target node based on runlink
 						}
 						agent.face(l.toAgent); //put the face last as we need the position
@@ -335,7 +339,7 @@
 				for (var i=0; i<links.length; i++) {
 					var lnk = links[i];
 					var e = this.createLink('line_'+lineCode,lnk.o,lnk.d);
-					e._userData.weight = lnk.r;
+					e._userData.runlink = lnk.r;
 					e._userData.direction = dir;
 					//console.log('CreateLink: ',lineCode,lnk.o,lnk.d);
 				}
@@ -348,9 +352,14 @@
 	
 	
 	//obtain latest data from API
+	//TODO: this needs to be removed in favour of the code in step and fetchNewData
 	MapTube.data.TfL.underground.positions(function(data,filetime) {
 		//console.log(data);
 		console.log("trackernet filetime: ",filetime);
+		this.currentDataDT = filetime;
+		var now = new Date();
+		var deltaT = (now-filetime)/1000.0; //this is how much time (secs) has elapsed since the data from the API - this gets subtracted from every tube's time to station
+		//console.log('deltaT=',deltaT,now,filetime);
 		
 		for (var i=0; i<data.length; i++)
 		{
@@ -376,10 +385,7 @@
 			//TODO: need some more properties here...
 			//var pos = Cesium.Cartesian3.fromDegrees(lon, lat);
 			//tubeAgent.setXYZ(pos.x,pos.y,pos.z);
-			//var dt = new Date(filetime.getTime()+timeToStation*1000);
-			//TODO: here! need the delta seconds offset
-			var dt = timeToStation;
-			var success = this.positionAgent(tubeAgent,lineCode,0/*dt*/,nextStation,direction);
+			var success = this.positionAgent(tubeAgent,lineCode,timeToStation-deltaT,nextStation,direction);
 			if (!success) {
 				console.log("position agent failed: ",data[i],tubeAgent);
 				tubeAgent.isVisible=false;
@@ -388,10 +394,82 @@
 	}.bind(this));
 
  }
+ ModelTrackernet.prototype.fetchNewData = function() {
+	//TODO:
+	MapTube.data.TfL.underground.positions(function(data,filetime) {
+		console.log("ModelTrackernet.prototype.fetchNewData: trackernet filetime: ",filetime);
+		if (filetime<=this.currentDataDT)
+			return false; //guard case, no new data available yet
+
+		this.currentDataDT = filetime;
+		var now = new Date();
+		var deltaT = (now-filetime)/1000.0; //this is how much time (secs) has elapsed since the data from the API - this gets subtracted from every tube's time to station
+		
+		var liveAgents = {}; //map to store names of agents updated here
+		for (var i=0; i<data.length; i++)
+		{
+			//read data from http request result
+			var lineCode = data[i].linecode;
+			var tripnumber = data[i].tripnumber;
+			var setnumber = data[i].setnumber;
+			if (lineCode.length==0) continue; //traps blank final line on the csv resulting in data[i] with no data in it
+			//var lat=MapTube.data.safeParseFloat(data[i],'lat');
+			//var lon=MapTube.data.safeParseFloat(data[i],'lon');
+			//if (isNaN(lat)||isNaN(lon)) continue;
+			var direction = parseInt(data[i].platformdirectioncode);
+			var destCode = data[i].destinationcode; //numeric
+			var nextStation = data[i].stationcode;
+			var timeToStation = parseFloat(data[i]['timetostation(secs)']);
+			var agentName = lineCode+'_'+setnumber+'_'+tripnumber;
+			liveAgents[agentName]=true;
+			
+			//create the agent and set his properties from the data line
+			//create agent of class "tube" which is used by the visualisation
+			//var tubeAgent = this.createAgents(1,'tube')[0]; //TODO: make this more elegant for cases when you only want one created
+			//UPDATE CODE
+			//see if agent already exists - if yes, then update his data, otherwise create a new agent
+			var tubeAgent = this.getAgent(agentName);
+			if (!tubeAgent) { //create a new agent - name and line code don't change, so only need to set them here
+				tubeAgent = this.createAgents(1,'tube')[0];
+				tubeAgent.name=agentName;
+				tubeAgent.lineCode=lineCode;
+			}
+			//nextStation, direction and other movement related properties get set in positionAgent
+			var success = this.positionAgent(tubeAgent,lineCode,timeToStation-deltaT,nextStation,direction);
+			if (!success) {
+				console.log("position agent failed: ",data[i],tubeAgent);
+				tubeAgent.isVisible=false;
+			}
+		}
+		//now we have to go through the list of agents again and remove any that haven't appeared in this set of data
+		//for (var i=0; i<this._agents['tube'].length; i++)
+		//{
+		//	var a = this._agents['tube'][i];
+		//	if (!liveAgents.hasOwnProperty[a.agentName])
+		//		this.destroyAgent(a);
+		//}
+	}.bind(this));
+ }
  ModelTrackernet.prototype.step = function(ticks) {
 	//TODO: logic for getting new data and moving agents around here
+	//TODO: this should be the only position update function - remove what is in the setup i nfavour of this code
+	//method: check if last data time was more than 3 minutes ago - if it was, then acquire new data and update positions
+	//otherwise, just keep moving them along by their velocities
 	//ticks in seconds
 	console.log('ModelTrackernet.step');
+	//check for availability of new data
+	var now = new Date();
+	var deltaT = (now-this.currentDataDT)/1000.0;
+	if (deltaT>180.0)
+	{
+		//new data is available, so we need to do an update
+		//NOTE: GeoGL had retry intervals here
+		this.fetchNewData();
+	}
+	else
+	{
+		//normal animate - everybody moves forwards
+	}
 	/*for (var i=0; i<this._agents['tube'].length; i++)
 	{
 		var a=this._agents['tube'][i];

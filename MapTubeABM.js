@@ -27,7 +27,7 @@ MapTube.ABM.Vector3 = function() {
 	//methods
 	//todo: constructor(x,y,z)?
 	this.add = function() {}
-	this.sub = function() {}
+	this.subtract = function(b) { var v = new MapTube.ABM.Vector3(); v.x=this.x-b.x; v.y=this.y-b.y; v.z=this.z-b.z; return v;}
 	this.normalise = function() { //standard normalise, returns normalised vector
 		var mag = Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.z);
 		var v = new Vector3();
@@ -103,6 +103,7 @@ MapTube.ABM.Model = function() {
 	
 	
 	//public methods
+	//TODO: agents should be part of a map, which would allow immediate access via their agent name
 	
 	/* @name createAgents Create [number] agents of class [className]
 	 * @param number The number of agents to create
@@ -127,6 +128,26 @@ MapTube.ABM.Model = function() {
 			newAgents.push(a);
 		}
 		return newAgents; //this is a live copy
+	}
+	
+	/*
+	 * @name destroyAgent Destroy an agent by moving him from the live list to the dead list so that the visualisation can remove him on the next frame.
+	 */
+	this.destroyAgent = function(agent)
+	{
+		this._deadAgents.push(agent);
+		for (var c in this._agents) {
+			var alist = this._agents[c];
+			for (var i=0; i<alist.length; i++) {
+				var a = alist[i];
+				if (a.name==agentName)
+				{
+					this._agents[c].splice(i,1);
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 	
 	//methods relating to finding agents by properties
@@ -229,7 +250,7 @@ MapTube.ABM.Agent = function() {
 	
 	//create, destroy
 	//std::vector<Agent*> Hatch(int N, std::string BreedName);
-	this.die = function() {}
+	//this.die = function() {}
 
 	//movement and orientation
 	this.getXYZ = function() { return this.position; }
