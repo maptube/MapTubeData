@@ -267,16 +267,16 @@ MapTube.ABM.Agent = function() {
 		//TODO: make this agent face the 'a' agent
 		//from geogl
 		//following assumes agent actually has a mesh that we can get the matrix from
-		/*glm::dvec3 P1 = GetXYZ(); //this is me
-		glm::dvec3 P2 = A.GetXYZ(); //this is who I want to look at
+		var P1 = this.getXYZ(); //this is me
+		var P2 = a.getXYZ(); //this is who I want to look at
 
 		//HACK!
-		if (glm::distance(P1,P2)<0.000000001f) return; //error, asked to face an agent that I'm virtually on top of
+		//if (glm::distance(P1,P2)<0.000000001f) return; //error, asked to face an agent that I'm virtually on top of
 
 		//_pAgentMesh->modelMatrix = glm::lookAt(P1,P2,glm::vec3(0,0,1)); //assumes agents exist on xy plane with up in +ve z direction
-		glm::vec3 f(glm::normalize(P2-P1)); //center - eye
-		glm::vec3 s(glm::normalize(glm::cross(f, glm::vec3(0,0,1)))); //(0,0,1)=up
-		glm::vec3 u(glm::cross(s, f));
+		var f = MapTube.ABM.Vector3.normalize(P2-P1); //center - eye
+		var s = MapTube.ABM.Vector3.normalize(MapTube.ABM.Vector3.cross(f, new MapTube.ABM.Vector3(0,0,1))); //(0,0,1)=up
+		var u = MapTube.ABM.Vector3.cross(s, f);
 
 		//transpose of view matrix glm::lookAt calculation and keep the position as P1
 		glm::mat4 Result(1);
@@ -298,7 +298,6 @@ MapTube.ABM.Agent = function() {
 		agentMatrix = Result;
 		if (_pAgentMesh)
 			_pAgentMesh->SetMatrix(Result); //and set the mesh matrix if there is actually a mesh
-		*/
 	}
 	this.forward = function(d) {
 		//from geogl
