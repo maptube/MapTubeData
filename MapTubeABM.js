@@ -26,7 +26,7 @@ MapTube.ABM.Vector3 = function() {
 	this.z=0;
 	//methods
 	//todo: constructor(x,y,z)?
-	this.add = function() {}
+	this.add = function(b) { var v = new MapTube.ABM.Vector3(); v.x=this.x+b.x; v.y=this.y+b.y; v.z=this.z+b.z; return v; }
 	this.subtract = function(b) { var v = new MapTube.ABM.Vector3(); v.x=this.x-b.x; v.y=this.y-b.y; v.z=this.z-b.z; return v;}
 	this.normalise = function() { //standard normalise, returns normalised vector
 		var mag = Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.z);
@@ -34,8 +34,19 @@ MapTube.ABM.Vector3 = function() {
 		v.x=this.x/mag; v.y=this.y/mag; v.z=this.z/mag;
 		return v;
 	}
-	//dot product
-	//cross product
+	//dot product, return a dot b as a scalar
+	this.dot = function(a,b) {
+		var dp = a.x*b.x + a.y*b.y + a.z*b.z;
+		return dp;
+	}
+	//cross product of vector a x b, return new vector
+	this.cross = function (a,b) {
+		var c = new MapTube.ABM.Vector3();
+		c.x = a.y*b.z - a.z*b.y;
+		c.y = a.z*b.x - a.x*b.z;
+		c.z = a.x*b.y - a.y*b.x;
+		return c;
+	}
 }
 MapTube.ABM.Matrix4 = function() {
 	//properties
@@ -46,7 +57,20 @@ MapTube.ABM.Matrix4 = function() {
 		[0.0, 0.0, 0.0, 1.0]
 	];
 	//methods
+	this.copy = function(m2) {
+		//deep copy another matrix
+		for (var y=0; y<4; y++) for (x=0; x<4; x++) this.m[x][y]=m2.m[x][y];
+	}
 	//TODO: add, subtract, rotate etc
+	this.translate = function(ma,v) {
+		//translate along main axes an amount defined by the v vector
+		var Result = new MapTube.ABM.Matrix4().copy(ma);
+		//Result[3] = m[0] * v[0] + m[1] * v[1] + m[2] * v[2] + m[3];
+		Result[3][0] = ma.m[0][0]*v.x + ma.m[1][0] * v.y + ma.m[2][0] * v.z + ma.m[3][0];
+		Result[3][1] = ma.m[0][1]*v.x + ma.m[1][1] * v.y + ma.m[2][1] * v.z + ma.m[3][1];
+		Result[3][2] = ma.m[0][2]*v.x + ma.m[1][2] * v.y + ma.m[2][2] * v.z + ma.m[3][2];
+		return Result;
+	}
 }
 
 
@@ -279,46 +303,48 @@ MapTube.ABM.Agent = function() {
 		var u = MapTube.ABM.Vector3.cross(s, f);
 
 		//transpose of view matrix glm::lookAt calculation and keep the position as P1
-		glm::mat4 Result(1);
-		Result[0][0] = s.x;
-		Result[0][1] = s.y;
-		Result[0][2] = s.z;
-		Result[1][0] = u.x;
-		Result[1][1] = u.y;
-		Result[1][2] = u.z;
-		Result[2][0] =-f.x;
-		Result[2][1] =-f.y;
-		Result[2][2] =-f.z;
-		//Result[3][0] =-dot(s, eye);
-		//Result[3][1] =-dot(u, eye);
-		//Result[3][2] = dot(f, eye);
-		Result[3][0]=(float)P1.x;
-		Result[3][1]=(float)P1.y;
-		Result[3][2]=(float)P1.z;
-		agentMatrix = Result;
-		if (_pAgentMesh)
-			_pAgentMesh->SetMatrix(Result); //and set the mesh matrix if there is actually a mesh
+		var Result = new MapTube.ABM.Matrix4(); //initialised to unit matrix
+		Result.m[0][0] = s.x;
+		Result.m[0][1] = s.y;
+		Result.m[0][2] = s.z;
+		Result.m[1][0] = u.x;
+		Result.m[1][1] = u.y;
+		Result.m[1][2] = u.z;
+		Result.m[2][0] =-f.x;
+		Result.m[2][1] =-f.y;
+		Result.m[2][2] =-f.z;
+		//Result.m[3][0] =-dot(s, eye);
+		//Result.m[3][1] =-dot(u, eye);
+		//Result.m[3][2] = dot(f, eye);
+		Result.m[3][0]=P1.x;
+		Result.m[3][1]=P1.y;
+		Result.m[3][2]=P1.z;
+		this.agentMatrix = Result;
+		this.isDirty=true;
+		//if (_pAgentMesh)
+		//	_pAgentMesh->SetMatrix(Result); //and set the mesh matrix if there is actually a mesh
 	}
 	this.forward = function(d) {
 		//from geogl
-		/*
 		//new code which can handle the absence of a model matrix (i.e. no mesh)
 		//set the position on the agent matrix
 		//direct manipulation of position
-		agentMatrix[3][0]=(float)position.x;
-		agentMatrix[3][1]=(float)position.y;
-		agentMatrix[3][2]=(float)position.z;
-		agentMatrix = glm::translate(agentMatrix,glm::vec3(0,0,-d));
+		this.agentMatrix[3][0]=this.position.x;
+		this.agentMatrix[3][1]=this.position.y;
+		this.agentMatrix[3][2]=this.position.z;
+		this.agentMatrix = MapTube.ABM.Matrix4.translate(agentMatrix,new MapTube.ABM.Vector3(0,0,-d));
 		//now get the position back
-		position.x=(float)agentMatrix[3][0];
-		position.y=(float)agentMatrix[3][1];
-		position.z=(float)agentMatrix[3][2];
+		this.position.x=this.agentMatrix[3][0];
+		this.position.y=this.agentMatrix[3][1];
+		this.position.z=this.agentMatrix[3][2];
+		this.isDirty=true;
 		//and set the mesh if it exists
-		if (_pAgentMesh)
-			_pAgentMesh->SetMatrix(agentMatrix);
-		*/
+		//if (_pAgentMesh)
+		//	_pAgentMesh->SetMatrix(agentMatrix);
 	}
-	//void Back(float d);
+	this.back = function(d) {
+		this.forward(-d);
+	}
 	//void Left(float d);
 	//void Right(float d);
 	//void Up(float d); //added this

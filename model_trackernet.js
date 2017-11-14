@@ -452,7 +452,7 @@
  }
  ModelTrackernet.prototype.step = function(ticks) {
 	//TODO: logic for getting new data and moving agents around here
-	//TODO: this should be the only position update function - remove what is in the setup i nfavour of this code
+	//TODO: this should be the only position update function - remove what is in the setup in favour of this code
 	//method: check if last data time was more than 3 minutes ago - if it was, then acquire new data and update positions
 	//otherwise, just keep moving them along by their velocities
 	//ticks in seconds
@@ -469,6 +469,12 @@
 	else
 	{
 		//normal animate - everybody moves forwards
+		for (var i=0; i<this._agents['tube'].length; i++)
+		{
+			var a=this._agents['tube'][i];
+			a.forward(a.v);
+			console.log("velocity="+a.v);
+		}
 	}
 	/*for (var i=0; i<this._agents['tube'].length; i++)
 	{
