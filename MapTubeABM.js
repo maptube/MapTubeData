@@ -19,35 +19,41 @@ MapTube.ABM = MapTube.ABM || {};
 
 //vector and matrix definitions - loosely based around glm, but nowhere near as advanced
 //allows easy conversion from GeoGL methods, although, obviously, javascript can't do operators
-MapTube.ABM.Vector3 = function() {
+MapTube.ABM.Vector3 = function(x,y,z) {
 	//properties
-	this.x=0;
-	this.y=0;
-	this.z=0;
+	this.x=x;
+	this.y=y;
+	this.z=z;
 	//methods
 	//todo: constructor(x,y,z)?
+	
 	this.add = function(b) { var v = new MapTube.ABM.Vector3(); v.x=this.x+b.x; v.y=this.y+b.y; v.z=this.z+b.z; return v; }
 	this.subtract = function(b) { var v = new MapTube.ABM.Vector3(); v.x=this.x-b.x; v.y=this.y-b.y; v.z=this.z-b.z; return v;}
-	this.normalise = function() { //standard normalise, returns normalised vector
-		var mag = Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.z);
-		var v = new Vector3();
-		v.x=this.x/mag; v.y=this.y/mag; v.z=this.z/mag;
-		return v;
-	}
-	//dot product, return a dot b as a scalar
-	this.dot = function(a,b) {
-		var dp = a.x*b.x + a.y*b.y + a.z*b.z;
-		return dp;
-	}
-	//cross product of vector a x b, return new vector
-	this.cross = function (a,b) {
-		var c = new MapTube.ABM.Vector3();
-		c.x = a.y*b.z - a.z*b.y;
-		c.y = a.z*b.x - a.x*b.z;
-		c.z = a.x*b.y - a.y*b.x;
-		return c;
-	}
+	
 }
+//static functions
+MapTube.ABM.Vector3.normalise = function(a) { //standard normalise, returns normalised vector of "a"
+	var mag = Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
+	var v = new MapTube.ABM.Vector3();
+	v.x=a.x/mag; v.y=a.y/mag; v.z=a.z/mag;
+	return v;
+}
+//dot product, return a dot b as a scalar
+MapTube.ABM.Vector3.dot = function(a,b) {
+	var dp = a.x*b.x + a.y*b.y + a.z*b.z;
+	return dp;
+}
+//cross product of vector a x b, return new vector
+MapTube.ABM.Vector3.cross = function (a,b) {
+	var c = new MapTube.ABM.Vector3();
+	c.x = a.y*b.z - a.z*b.y;
+	c.y = a.z*b.x - a.x*b.z;
+	c.z = a.x*b.y - a.y*b.x;
+	return c;
+}
+
+
+/////////////////////////////////////////////
 MapTube.ABM.Matrix4 = function() {
 	//properties
 	this.m = [
@@ -57,21 +63,28 @@ MapTube.ABM.Matrix4 = function() {
 		[0.0, 0.0, 0.0, 1.0]
 	];
 	//methods
+	//TODO: add, subtract, rotate etc
 	this.copy = function(m2) {
 		//deep copy another matrix
 		for (var y=0; y<4; y++) for (x=0; x<4; x++) this.m[x][y]=m2.m[x][y];
 	}
-	//TODO: add, subtract, rotate etc
-	this.translate = function(ma,v) {
+	this.translate = function(v) {
 		//translate along main axes an amount defined by the v vector
-		var Result = new MapTube.ABM.Matrix4().copy(ma);
+		var Result = new MapTube.ABM.Matrix4();
+		Result.copy(this);
 		//Result[3] = m[0] * v[0] + m[1] * v[1] + m[2] * v[2] + m[3];
-		Result[3][0] = ma.m[0][0]*v.x + ma.m[1][0] * v.y + ma.m[2][0] * v.z + ma.m[3][0];
-		Result[3][1] = ma.m[0][1]*v.x + ma.m[1][1] * v.y + ma.m[2][1] * v.z + ma.m[3][1];
-		Result[3][2] = ma.m[0][2]*v.x + ma.m[1][2] * v.y + ma.m[2][2] * v.z + ma.m[3][2];
+		Result.m[3][0] = this.m[0][0]*v.x + this.m[1][0] * v.y + this.m[2][0] * v.z + this.m[3][0];
+		Result.m[3][1] = this.m[0][1]*v.x + this.m[1][1] * v.y + this.m[2][1] * v.z + this.m[3][1];
+		Result.m[3][2] = this.m[0][2]*v.x + this.m[1][2] * v.y + this.m[2][2] * v.z + this.m[3][2];
 		return Result;
 	}
+
 }
+//static functions
+//none
+
+
+///////////////////////////////////////////////
 
 
 //class model
@@ -295,11 +308,11 @@ MapTube.ABM.Agent = function() {
 		var P2 = a.getXYZ(); //this is who I want to look at
 
 		//HACK!
-		//if (glm::distance(P1,P2)<0.000000001f) return; //error, asked to face an agent that I'm virtually on top of
+		if (this.distance(a)<0.01) return; //error, asked to face an agent that I'm virtually on top of
 
 		//_pAgentMesh->modelMatrix = glm::lookAt(P1,P2,glm::vec3(0,0,1)); //assumes agents exist on xy plane with up in +ve z direction
-		var f = MapTube.ABM.Vector3.normalize(P2-P1); //center - eye
-		var s = MapTube.ABM.Vector3.normalize(MapTube.ABM.Vector3.cross(f, new MapTube.ABM.Vector3(0,0,1))); //(0,0,1)=up
+		var f = MapTube.ABM.Vector3.normalise(P2.subtract(P1)); //center - eye
+		var s = MapTube.ABM.Vector3.normalise(MapTube.ABM.Vector3.cross(f, new MapTube.ABM.Vector3(0,0,1))); //(0,0,1)=up
 		var u = MapTube.ABM.Vector3.cross(s, f);
 
 		//transpose of view matrix glm::lookAt calculation and keep the position as P1
@@ -329,14 +342,16 @@ MapTube.ABM.Agent = function() {
 		//new code which can handle the absence of a model matrix (i.e. no mesh)
 		//set the position on the agent matrix
 		//direct manipulation of position
-		this.agentMatrix[3][0]=this.position.x;
-		this.agentMatrix[3][1]=this.position.y;
-		this.agentMatrix[3][2]=this.position.z;
-		this.agentMatrix = MapTube.ABM.Matrix4.translate(agentMatrix,new MapTube.ABM.Vector3(0,0,-d));
+		console.log("forward: original position: ",this.position,this.agentMatrix);
+		this.agentMatrix.m[3][0]=this.position.x;
+		this.agentMatrix.m[3][1]=this.position.y;
+		this.agentMatrix.m[3][2]=this.position.z;
+		this.agentMatrix = this.agentMatrix.translate(new MapTube.ABM.Vector3(0,0,-d));
 		//now get the position back
-		this.position.x=this.agentMatrix[3][0];
-		this.position.y=this.agentMatrix[3][1];
-		this.position.z=this.agentMatrix[3][2];
+		this.position.x=this.agentMatrix.m[3][0];
+		this.position.y=this.agentMatrix.m[3][1];
+		this.position.z=this.agentMatrix.m[3][2];
+		console.log("forward: updated position: ",this.position,this.agentMatrix);
 		this.isDirty=true;
 		//and set the mesh if it exists
 		//if (_pAgentMesh)

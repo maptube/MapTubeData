@@ -353,7 +353,7 @@
 	
 	//obtain latest data from API
 	//TODO: this needs to be removed in favour of the code in step and fetchNewData
-	MapTube.data.TfL.underground.positions(function(data,filetime) {
+	/*MapTube.data.TfL.underground.positions(function(data,filetime) {
 		//console.log(data);
 		console.log("trackernet filetime: ",filetime);
 		this.currentDataDT = filetime;
@@ -391,7 +391,7 @@
 				tubeAgent.isVisible=false;
 			}
 		}
-	}.bind(this));
+	}.bind(this));*/
 
  }
  ModelTrackernet.prototype.fetchNewData = function() {
@@ -456,7 +456,7 @@
 	//method: check if last data time was more than 3 minutes ago - if it was, then acquire new data and update positions
 	//otherwise, just keep moving them along by their velocities
 	//ticks in seconds
-	console.log('ModelTrackernet.step');
+	console.log('ModelTrackernet.step '+(new Date()));
 	//check for availability of new data
 	var now = new Date();
 	var deltaT = (now-this.currentDataDT)/1000.0;
@@ -468,12 +468,16 @@
 	}
 	else
 	{
+		console.log("normal animate")
 		//normal animate - everybody moves forwards
 		for (var i=0; i<this._agents['tube'].length; i++)
 		{
 			var a=this._agents['tube'][i];
-			a.forward(a.v);
-			console.log("velocity="+a.v);
+			a.forward(5/*a.v*/);
+			//console.log("velocity="+a.v);
+			if (isNaN(a.position.x)||isNaN(a.position.y)||isNaN(a.position.z)) {
+				a.position.x=3978133; a.position.y=-15712; a.position.z=4968747; //HACK!!!
+			}
 		}
 	}
 	/*for (var i=0; i<this._agents['tube'].length; i++)
