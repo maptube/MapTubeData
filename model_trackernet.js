@@ -85,8 +85,14 @@
 							{
 								name : a.name,
 								position: new Cesium.Cartesian3(a.position.x,a.position.y,a.position.z),
-								box : {
-									dimensions : new Cesium.Cartesian3(200.0, 200.0, 150.0),
+								//box : {
+								//	dimensions : new Cesium.Cartesian3(200.0, 200.0, 150.0),
+								//	material : Cesium.Color.fromCssColorString(this.lineCodeToCSSColour(a.lineCode))
+								//}
+								polygon: {
+									polygonHierarchy : {
+										positions: Cesium.Cartesian3.fromArray([ 0,1000,1000,  500,-500,500,  -500,-500,500])
+									},
 									material : Cesium.Color.fromCssColorString(this.lineCodeToCSSColour(a.lineCode))
 								}
 							});

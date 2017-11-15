@@ -342,7 +342,7 @@ MapTube.ABM.Agent = function() {
 		//new code which can handle the absence of a model matrix (i.e. no mesh)
 		//set the position on the agent matrix
 		//direct manipulation of position
-		console.log("forward: original position: ",this.position,this.agentMatrix);
+		//console.log("forward: original position: ",this.position,this.agentMatrix);
 		this.agentMatrix.m[3][0]=this.position.x;
 		this.agentMatrix.m[3][1]=this.position.y;
 		this.agentMatrix.m[3][2]=this.position.z;
@@ -351,7 +351,7 @@ MapTube.ABM.Agent = function() {
 		this.position.x=this.agentMatrix.m[3][0];
 		this.position.y=this.agentMatrix.m[3][1];
 		this.position.z=this.agentMatrix.m[3][2];
-		console.log("forward: updated position: ",this.position,this.agentMatrix);
+		//console.log("forward: updated position: ",this.position,this.agentMatrix);
 		this.isDirty=true;
 		//and set the mesh if it exists
 		//if (_pAgentMesh)
