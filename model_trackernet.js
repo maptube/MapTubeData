@@ -45,9 +45,40 @@
 		this._cesiumTubeDataSource = new Cesium.CustomDataSource('trackernet');
 		this.viewer.dataSources.add(this._cesiumTubeDataSource);
 		//polylines are created for each Graph, with the cesium entity hooked into the graph object
+		
+		//define and entity that we can use for a popup to show information - it's a billboard
+		var entity = this.viewer.entities.add({
+			label : {
+				show : false,
+				showBackground : true,
+				font : '14px monospace',
+				horizontalOrigin : Cesium.HorizontalOrigin.LEFT,
+				verticalOrigin : Cesium.VerticalOrigin.TOP,
+				pixelOffset : new Cesium.Cartesian2(15, 0)
+			}
+		});
+		
+		//define a pick handler for the tubes and stations - NOTE: the tube lines get picked, but don't have an id
+		var scene = this.viewer.scene;
+		this.handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+		this.handler.setInputAction(function(movement) {
+			var pickedObject = scene.pick(movement.endPosition);
+			if (Cesium.defined(pickedObject)&&Cesium.defined(pickedObject.id)) {
+				var cartesian = viewer.camera.pickEllipsoid(movement.endPosition, scene.globe.ellipsoid);
+				if (cartesian) {
+					//console.log("PICK: ",pickedObject);
+					entity.position = cartesian;
+					entity.label.show = true;
+					entity.label.text = pickedObject.id.name;
+				}
+			}
+			else {
+				entity.label.show=false;
+			}
+		}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 	}
 	this.cesiumUpdate = function() {
-		console.log('ModelTrackernet::cesiumUpdate');
+		//console.log('ModelTrackernet::cesiumUpdate');
 		//NOTE: agents are tagged with __cesiumEntity which contains the cesium entity displayed on the globe, which allows for manipulation
 		//if this was outside the model, then pass in viewer and Model - this might be a good way of separating
 		//the model from the visualisation as ModelTrackernet should contain no Cesium code at all.
@@ -75,7 +106,7 @@
 									topRadius : 200.0,
 									bottomRadius : 200.0,
 									dimensions : new Cesium.Cartesian3(200.0, 200.0, 100.0),
-									material : Cesium.Color.WHITE
+									material : Cesium.Color.WHITE //new Cesium.Color(1.0,1.0,1.0,0.75)
 								}
 							});
 						}
@@ -85,16 +116,19 @@
 							{
 								name : a.name,
 								position: new Cesium.Cartesian3(a.position.x,a.position.y,a.position.z),
-								//box : {
-								//	dimensions : new Cesium.Cartesian3(200.0, 200.0, 150.0),
-								//	material : Cesium.Color.fromCssColorString(this.lineCodeToCSSColour(a.lineCode))
-								//}
-								polygon: {
-									polygonHierarchy : {
-										positions: Cesium.Cartesian3.fromArray([ 0,1000,1000,  500,-500,500,  -500,-500,500])
-									},
+								box : {
+									dimensions : new Cesium.Cartesian3(200.0, 200.0, 150.0),
 									material : Cesium.Color.fromCssColorString(this.lineCodeToCSSColour(a.lineCode))
 								}
+								//can't get this to work - you need a gltf model
+								//polygon: {
+								//	hierarchy : Cesium.Cartesian3.fromArray([-115.0, 37.0,0,
+                                //                        -115.0, 32.0,0,
+                                //                        -107.0, 33.0,0,
+                                //                        -102.0, 31.0,0,
+                                //                        -102.0, 35.0,0]),
+								//	material : Cesium.Color.fromCssColorString(this.lineCodeToCSSColour(a.lineCode))
+								//}
 							});
 						}
 					}
@@ -175,9 +209,9 @@
 	//End of Cesium visualisation hooks
 	 
 	 
-	 
 	//properties
 	this.viewer = null; //need to set this as a link to the Cesium instance
+	this.handler = null; //Cesium handler object - needed for events and picking
 	 
 	 
 	 //private methods
@@ -462,7 +496,7 @@
 	//method: check if last data time was more than 3 minutes ago - if it was, then acquire new data and update positions
 	//otherwise, just keep moving them along by their velocities
 	//ticks in seconds
-	console.log('ModelTrackernet.step '+(new Date()));
+	//console.log('ModelTrackernet.step '+(new Date()));
 	//check for availability of new data
 	var now = new Date();
 	var deltaT = (now-this.currentDataDT)/1000.0;
@@ -474,7 +508,7 @@
 	}
 	else
 	{
-		console.log("normal animate")
+		//console.log("normal animate")
 		//normal animate - everybody moves forwards
 		for (var i=0; i<this._agents['tube'].length; i++)
 		{
