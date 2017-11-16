@@ -159,6 +159,7 @@ MapTube.ABM.Model = function() {
 			a.id = this.agentCount;
 			++this.agentCount;
 			a.name = 'agent_'+a.number;
+			a.className = className;
 			//are there any other properties to set here?
 			
 			this._agents[className].push(a);
@@ -273,7 +274,7 @@ MapTube.ABM.Agent = function() {
 	//static Agents* _pParentAgents; //parent of all Agent classes - Agents, which needs to keep a list of its children
 		
 	this.id = -1; //unique agent number
-	//std::string _BreedName;
+	this.className = ''; //class of this agent
 	this.name = 'agent'; //unique key (is it unique?)
 	this.graphVertex = {}; //map connecting this agent to a named network graph to link to its vertex representation in the graph structure
 	//colour

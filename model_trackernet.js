@@ -60,6 +60,7 @@
 		
 		//define a pick handler for the tubes and stations - NOTE: the tube lines get picked, but don't have an id
 		var scene = this.viewer.scene;
+		var model = this; //the handler binds this to the event object
 		this.handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
 		this.handler.setInputAction(function(movement) {
 			var pickedObject = scene.pick(movement.endPosition);
@@ -69,7 +70,12 @@
 					//console.log("PICK: ",pickedObject);
 					entity.position = cartesian;
 					entity.label.show = true;
-					entity.label.text = pickedObject.id.name;
+					var text = pickedObject.id.name;
+					var a = model.getAgent(pickedObject.id.name);
+					if ((a)&&(a.className=='tube')) {
+						text = pickedObject.id.name + " O: "+a.fromNode.name+" D: "+a.toNode.name;
+					}
+					entity.label.text = text;
 				}
 			}
 			else {
@@ -525,6 +531,7 @@
 		var a=this._agents['tube'][i];
 		if (a) { a.position.x+=10; a.position.y+=10; a.position.z+=10; a.isDirty=true; }
 	}*/
+	console.log("agent count: "+this._agents['tube'].length);
 	this.cesiumUpdate();
  }
 // ModelTrackernet.prototype.updateScene = function() {
