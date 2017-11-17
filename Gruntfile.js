@@ -21,6 +21,18 @@ module.exports = function(grunt) {
         logRequests: true
 	  },
       foo: 'bar' // For some reason an extra key with a non-object value is necessary 
+    },
+	documentation: {
+        default: {
+            files: [{
+                "expand": true,
+                "cwd": "src",
+                "src": ["**/*.js"]
+            }],
+            options: {
+                destination: "docs"
+            }
+        },
     }
   });
 
@@ -29,6 +41,9 @@ module.exports = function(grunt) {
   
   // Load the plugin that provides the "web-server" task.
   grunt.loadNpmTasks('grunt-web-server');
+  
+  // Load the plugin that provices the "documentation" task.
+  grunt.loadNpmTasks('grunt-documentation');
 
   // Default task(s).
   grunt.registerTask('default', ['uglify']);
