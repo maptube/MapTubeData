@@ -33,7 +33,7 @@
 	//This section makes the link between the agent model and how it displays on the globe.
 	//There are two ways that this can be done: overload all methods and properties that change the visualisation
 	//with ones that update Cesium directly, or alternatively, let the ABM run headless and do a screen update
-	//periodically. You could used "dirty" flags for performance.
+	//periodically. You could use "dirty" flags for performance.
 	//On reflection, the second method seems better.
 	//TODO:
 	this.cesiumSetup = function() {
@@ -155,9 +155,10 @@
 		//NOTE: stations don't ever get killed, so we can ignore them and only look for tubes
 		for (var i=0; i<this._deadAgents.length; i++)
 		{
-			//NOTE: changed _deadAgents to be the actual agent object, not just the name
-			//var name = this._deadAgents[i];
-			//this._cesiumTubeDataSource.entities.removeById(name); //returns true on success
+			//NOTE: _deadAgents contains the actual agent object killed off this step, not just the name
+			var a = this._deadAgents[i];
+			this._cesiumTubeDataSource.entities.removeById(a.name); //returns true on success
+			console.log("Kill agent ",a.name);
 		}
 		
 		
@@ -488,12 +489,12 @@
 			}
 		}
 		//now we have to go through the list of agents again and remove any that haven't appeared in this set of data
-		//for (var i=0; i<this._agents['tube'].length; i++)
-		//{
-		//	var a = this._agents['tube'][i];
-		//	if (!liveAgents.hasOwnProperty[a.agentName])
-		//		this.destroyAgent(a);
-		//}
+		for (var i=0; i<this._agents['tube'].length; i++)
+		{
+			var a = this._agents['tube'][i];
+			if (!liveAgents.hasOwnProperty[a.agentName])
+				this.destroyAgent(a);
+		}
 	}.bind(this));
  }
  ModelTrackernet.prototype.step = function(ticks) {
@@ -519,18 +520,47 @@
 		for (var i=0; i<this._agents['tube'].length; i++)
 		{
 			var a=this._agents['tube'][i];
-			a.forward(5/*a.v*/);
-			//console.log("velocity="+a.v);
-			if (isNaN(a.position.x)||isNaN(a.position.y)||isNaN(a.position.z)) {
+			var toNode = a.toNode;
+			if (!toNode) continue; //HACK! guard case for it going wrong - why?????
+			if (a.aabbDistanceTest(toNode,a.v)) //testing distance to station (using quick method)
+			{
+				//need new toNode based on current direction
+				//we're going to get all the outlinks of the current agent's direction and then see if there's a choice
+				var dir = a.direction;
+				var lc = a.lineCode;
+				var edges = toNode.outLinks('line_'+lc);
+				var possibles = [];
+				for (var e=0; e<edges.length; e++) {
+					var link = MapTube.ABM.Link(edges[e]);
+					//props on link: runlink, direction
+					var link_dir = link.get('direction');
+					if (link_dir==dir) possibles.push(link);
+				}
+				//now, pick one of the possibles at random
+				//TODO: once you get the route choice learning working CHANGE THIS!
+				if (possibles.length>0) {
+					var rnd=0;
+					//TODO: check whether this formula is equal for every possible
+					if (possibles.length>1) rnd = Math.round(Math.random()*(possibles.length-1));
+					a.fromNode=a.toNode;
+					a.toNode=possibles[rnd].toAgent;
+					a.v=a.distance(a.toNode)/possibles[rnd].get('runlink'); //this is the average time for the link from the graph
+					a.face(a.toNode);
+				}
+				//NOTE: if there are no possible choices (end of line?), then the train stays where he is until the next data update
+			}
+			else
+			{
+				//normal continue along current link to next toNode
+				a.forward(a.v);
+				//console.log("velocity="+a.v);
+			}
+			
+			if (isNaN(a.position.x)||isNaN(a.position.y)||isNaN(a.position.z)) { //TODO: why not just make it invisible?
 				a.position.x=3978133; a.position.y=-15712; a.position.z=4968747; //HACK!!!
 			}
 		}
 	}
-	/*for (var i=0; i<this._agents['tube'].length; i++)
-	{
-		var a=this._agents['tube'][i];
-		if (a) { a.position.x+=10; a.position.y+=10; a.position.z+=10; a.isDirty=true; }
-	}*/
 	console.log("agent count: "+this._agents['tube'].length);
 	this.cesiumUpdate();
  }

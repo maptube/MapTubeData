@@ -1,14 +1,13 @@
-/**
-* Model.js
-* MapTube.ABM.Model
-* Richard Milton 21 April 2017
-* Agent Based Modelling in javascript. Designed to run headless, so contains no visualisation code.
-* This is a 3D ABM, designed to interface with a virtual globe e.g. Cesium.
-* The design pattern is that the ABM runs headless and an update function makes changes to the visualisation in Cesium
-* peridically, but this project contains no visualisation code, only ABM functionality.
-*
-* ! Using documentation.js documentation !
-*/
+// Model.js
+// MapTube.ABM.Model
+// Richard Milton 21 April 2017
+// Agent Based Modelling in javascript. Designed to run headless, so contains no visualisation code.
+// This is a 3D ABM, designed to interface with a virtual globe e.g. Cesium.
+// The design pattern is that the ABM runs headless and an update function makes changes to the visualisation in Cesium
+// peridically, but this project contains no visualisation code, only ABM functionality.
+//
+// ! Using documentation.js documentation !
+//
 //TODO: agents can't die
 
 //require graph.js
@@ -21,7 +20,10 @@ MapTube.ABM = MapTube.ABM || {};
 //vector and matrix definitions - loosely based around glm, but nowhere near as advanced
 //allows easy conversion from GeoGL methods, although, obviously, javascript can't do operators
 /**
-  * MapTube.ABM.Vector3 Class
+* MapTube.ABM.Vector3 Class
+* @param {number} x X coordinate.
+* @param {number} y Y coordinate.
+* @param {number} z Z coordinate.
 */
 MapTube.ABM.Vector3 = function(x,y,z) {
 	//properties
@@ -142,6 +144,8 @@ MapTube.ABM.Model = function() {
 	
 	//properties
 	this.agentCount = 0; //global count of agents so each one gets a unique index number - this is NOT the number of live agents as it never decreases
+	this.createCount = 0; //count of number of agents created in the last time step
+	this.destroyCount = 0; //count of number of agents destroyed in the last time step
 	this._deadAgents = []; //list of the names of agents killed this cycle which will need to be removed from the visualisation
 	this._agents = {}; //named with their class name, each is of class Agents
 	this._graphs = {}; //network graphs relating to agent interactions (if used)
@@ -157,8 +161,10 @@ MapTube.ABM.Model = function() {
 		var ticks = timestamp-this.lastUpdateModelTime;
 		//console.log('MapTube.ABM.Model.updateModel2 '+timestamp+' '+ticks);
 		if (ticks<this.stepTimeMillis) return; //only call the step function when the time comes around
-		//reset the dead agent list
+		//reset the dead agent list and create and destroy counters
 		this._deadAgents = [];
+		this.createCount = 0;
+		this.destroyCount = 0;
 		this.step(ticks/1000.0); //call user defined step function and pass in how long since last update in seconds
 		this.lastUpdateModelTime=timestamp;		
 	}
@@ -223,6 +229,7 @@ MapTube.ABM.Model = function() {
 			
 			this._agents[className].push(a);
 			newAgents.push(a);
+			++this.createCount;
 		}
 		return newAgents; //this is a live copy
 	}
@@ -235,15 +242,14 @@ MapTube.ABM.Model = function() {
 	this.destroyAgent = function(agent)
 	{
 		this._deadAgents.push(agent);
-		for (var c in this._agents) {
-			var alist = this._agents[c];
-			for (var i=0; i<alist.length; i++) {
-				var a = alist[i];
-				if (a.name==agentName)
-				{
-					this._agents[c].splice(i,1);
-					return true;
-				}
+		var alist = this._agents[agent.className];
+		for (var i=0; i<alist.length; i++) {
+			var a = alist[i];
+			if (a.name==agent.name)
+			{
+				this._agents[agent.className].splice(i,1);
+				++this.destroyCount;
+				return true;
 			}
 		}
 		return false;
@@ -353,7 +359,7 @@ MapTube.ABM.Agent = function() {
 	
 	//create, destroy
 	//std::vector<Agent*> Hatch(int N, std::string BreedName);
-	//this.die = function() {}
+	//this.die = function() {} //To implement this, it might be better to have an isAlive flag and let the model garbage collect on a step
 
 	//movement and orientation
 	/**
@@ -517,6 +523,17 @@ MapTube.ABM.Agent = function() {
 		return Math.sqrt(dx*dx+dy*dy+dz*dz);
 	}
 	
+	/**
+	* Test whether this agent is within an axis aligned bounding box centred on another agent. Quick test for agent closeness.
+	* @param {Agent} a The other agent forming the centre point of the bounding cube.
+	* @param {number} d The half span bounding cube distance e.g. if you pass in 1.0 then it tests for x>=a.x-1.0 && x<=a.x+1.0 (so cube of side 2.0, but 1.0 from agent).
+	* @returns True if this agent is within the bounding cube.
+	*/
+	this.aabbDistanceTest = function(a,d) {
+		var p = a.getXYZ();
+		return ((Math.abs(this.position.x-p.x)<=d) && (Math.abs(this.position.y-p.y)<=d) && (Math.abs(this.position.z-p.z)<=d));
+	}
+	
 	//links - NOTE: links don't exist, it just returns the in or out edges from the graph vertex linked to the agent.
 	/**
 	* Passed a name identifying a graph network, return a list of links going into this agent, or the empty list if none.
@@ -547,30 +564,32 @@ MapTube.ABM.Agent = function() {
 
 
 
-//class agents - all of same class
+/**
+* MapTube.ABM.Agents class. Holds all agents of a single class. Multiple Agents objects are held by the Model to store each class type independently.
+*/
 MapTube.ABM.Agents = function() {
 	console.log('MapTube.ABM.Agents::constructor');
-	this.numAgents = 0; //counter for how many agents are in the model
+	this.numAgents = 0; //counter for how many agents of this class are in the model
 	this.birth = 0; //number of agents created in the last animation frame
 	this.death = 0; //number of agents destroyed in the last animation frame
-	//classNames : [];
 	this._agents = []; //list of all agents
 	
 	//Agent methods
-	//sprout?
-	this.create = function () {}; //you can only create one of this class type from here - use model class otherwise
-	this.die = function (a) {};
+	//this.create = function () {}; //you can only create one of this class type from here - use model class otherwise
+	//this.die = function (a) {};
 	//TODO:
 	//std::vector<ABM::Agent*> With(std::string VariableName,std::string Value); //quick version for just one variable name
 	//TODO: you could pass a function to WITH as the selector (visitor pattern)
 	//std::vector<ABM::Agent*> Ask(std::string BreedName); //For(breedname) ? i.e. for d in drivers
 }
 
-//class link
-//This is a helper class which is extracted based on a Graph.Edge linking two agents together.
-//Return a view of an edge which is from the Agent point of view i.e. hide the underlying graph.
+/**
+* This is a helper class which is extracted based on a Graph.Edge linking two agents together.
+* @param {Edge} e The edge in the Graph object used to wrap the ABM link helper class around.
+* @returns {MapTube.ABM.Link} A view of an edge which is from the Agent point of view i.e. hide the underlying graph.
+*/
 MapTube.ABM.Link = function(e) {
-	return {
+	return /** @lends MapTube.ABM.Link */ {
 		//properties
 		e : e,
 		label : e._label,
@@ -578,13 +597,26 @@ MapTube.ABM.Link = function(e) {
 		fromAgent : e._userData._fromAgent,
 		toAgent : e._userData._toAgent,
 		//methods
+		/**
+		* Getter function to extract an ABM Link property value from the _userData object tagged to the graph edge.
+		* @param {string} propName Name of the property to query.
+		* @returns {object} The property requested as an object i.e. type could be any javascript object like string or number.
+		*/
 		get : function(propName) { return this.e._userData[propName]; },
+		/**
+		* Setter method to set an ABM Link property value on the _userData object tagged to the graph edge.
+		* @param {string} propName Name of the property to set.
+		* @param {object} value The value of the object being created or set.
+		*/
 		set : function(propName,value) { this.e._userData.propName=value; }
 	}
 }
 
 //class agent time
 
+/**
+* MapTube.ABM.AgentTime class. Used to provide date handling functions for the ABM. Currently unused.
+*/
 MapTube.ABM.AgentTime = function() {
 /*	time_t _DT; //year, month, day, hour, min, second
 	float _fraction; //fractions of a second
